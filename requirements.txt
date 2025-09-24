@@ -1,0 +1,9 @@
+# Core dependencies
+PyYAML>=6.0
+
+# Optional dependencies for enhanced functionality
+# These are commonly available but not strictly required
+
+# Development dependencies (uncomment for development)
+# pytest>=7.0
+# pytest-cov>=4.0

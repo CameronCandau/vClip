@@ -1,0 +1,54 @@
+# vclip configuration file
+# This is the default configuration for the command snippet manager
+
+# Source configuration - where to find markdown files
+sources:
+  # Explicit file paths
+  files: []
+
+  # Directories to search for markdown files
+  directories:
+    - "~/Documents/commands"
+    - "~/.local/share/vclip"
+
+  # Search directories recursively
+  recursive: true
+
+  # File patterns to match
+  file_patterns:
+    - "*.md"
+    - "*.markdown"
+
+# Rofi interface configuration
+rofi:
+  # Additional arguments to pass to rofi
+  args: []
+
+  # Use pango markup for formatting
+  use_markup: true
+
+  # Maximum number of lines to show
+  max_lines: 15
+
+  # Prompt text
+  prompt: "Commands"
+
+# Cache configuration
+cache:
+  # Enable caching for faster startup
+  enabled: true
+
+  # Cache directory (null means use default: ~/.cache/vclip)
+  directory: null
+
+  # Automatically clean up invalid cache files
+  auto_cleanup: true
+
+
+# Variable definitions for command substitution
+# These will be available as $VARIABLE_NAME in commands
+variables:
+  # Example variables
+  # TARGET: "192.168.1.1"
+  # USERNAME: "admin"
+  # PROJECT_DIR: "/home/user/projects"

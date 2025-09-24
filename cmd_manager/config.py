@@ -1,0 +1,286 @@
+"""
+Configuration management for vclip.
+"""
+
+import os
+import yaml
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+from dataclasses import dataclass, asdict
+
+
+@dataclass
+class RofiConfig:
+    """Configuration for rofi interface."""
+    args: List[str]
+    use_markup: bool = True
+    max_lines: int = 15
+    prompt: str = "Commands"
+
+    def get_rofi_args(self) -> List[str]:
+        """Get complete rofi arguments list."""
+        base_args = [
+            "-dmenu",
+            "-i",  # case-insensitive
+            "-p", self.prompt,
+            "-format", "i",  # return index
+            "-no-custom",  # don't allow custom input
+            "-lines", str(self.max_lines),
+        ]
+
+        if self.use_markup:
+            base_args.append("-markup-rows")
+
+        # Add custom args
+        return base_args + self.args
+
+
+@dataclass
+class SourceConfig:
+    """Configuration for source files and directories."""
+    files: List[str]
+    directories: List[str]
+    recursive: bool = True
+    file_patterns: List[str] = None
+
+    def __post_init__(self):
+        if self.file_patterns is None:
+            self.file_patterns = ["*.md", "*.markdown"]
+
+
+@dataclass
+class CacheConfig:
+    """Configuration for caching system."""
+    enabled: bool = True
+    directory: Optional[str] = None
+    auto_cleanup: bool = True
+
+
+@dataclass
+class VclipConfig:
+    """Main configuration class for vclip."""
+    sources: SourceConfig
+    rofi: RofiConfig
+    cache: CacheConfig
+    variables: Dict[str, str] = None
+
+    def __post_init__(self):
+        if self.variables is None:
+            self.variables = {}
+
+
+class ConfigManager:
+    """Manages configuration loading and saving."""
+
+    def __init__(self, config_path: Optional[str] = None):
+        """
+        Initialize configuration manager.
+
+        Args:
+            config_path: Path to config file. If None, uses default locations.
+        """
+        self.config_path = self._resolve_config_path(config_path)
+        self.config: Optional[VclipConfig] = None
+
+    def _resolve_config_path(self, config_path: Optional[str]) -> Path:
+        """Resolve configuration file path using XDG standards."""
+        if config_path:
+            return Path(config_path)
+
+        # Try XDG_CONFIG_HOME first
+        xdg_config = os.environ.get('XDG_CONFIG_HOME')
+        if xdg_config:
+            config_dir = Path(xdg_config) / 'vclip'
+        else:
+            config_dir = Path.home() / '.config' / 'vclip'
+
+        return config_dir / 'config.yaml'
+
+    def _get_default_config(self) -> VclipConfig:
+        """Get default configuration."""
+        home_dir = Path.home()
+
+        return VclipConfig(
+            sources=SourceConfig(
+                files=[],
+                directories=[
+                    str(home_dir / 'Documents' / 'commands'),
+                    str(home_dir / '.local' / 'share' / 'vclip'),
+                ],
+                recursive=True,
+                file_patterns=["*.md", "*.markdown"]
+            ),
+            rofi=RofiConfig(
+                args=[],
+                use_markup=True,
+                max_lines=15,
+                prompt="Commands"
+            ),
+            cache=CacheConfig(
+                enabled=True,
+                directory=None,  # Will use default cache directory
+                auto_cleanup=True
+            ),
+            variables={}
+        )
+
+    def load_config(self) -> VclipConfig:
+        """Load configuration from file or create default."""
+        if self.config_path.exists():
+            try:
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    data = yaml.safe_load(f) or {}
+
+                # Convert dict to config objects
+                config = self._dict_to_config(data)
+                self.config = config
+                return config
+
+            except (yaml.YAMLError, KeyError, TypeError) as e:
+                print(f"Warning: Error loading config from {self.config_path}: {e}")
+                print("Using default configuration.")
+
+        # Return default config
+        self.config = self._get_default_config()
+        return self.config
+
+    def save_config(self, config: Optional[VclipConfig] = None) -> bool:
+        """Save configuration to file."""
+        if config is None:
+            config = self.config
+
+        if config is None:
+            return False
+
+        try:
+            # Create config directory if it doesn't exist
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Convert config to dict
+            config_dict = self._config_to_dict(config)
+
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                yaml.dump(config_dict, f, default_flow_style=False, indent=2)
+
+            return True
+
+        except (OSError, yaml.YAMLError) as e:
+            print(f"Error saving config to {self.config_path}: {e}")
+            return False
+
+    def _dict_to_config(self, data: Dict[str, Any]) -> VclipConfig:
+        """Convert dictionary to VclipConfig object."""
+        sources_data = data.get('sources', {})
+        sources = SourceConfig(
+            files=sources_data.get('files', []),
+            directories=sources_data.get('directories', []),
+            recursive=sources_data.get('recursive', True),
+            file_patterns=sources_data.get('file_patterns', ["*.md", "*.markdown"])
+        )
+
+        rofi_data = data.get('rofi', {})
+        rofi = RofiConfig(
+            args=rofi_data.get('args', []),
+            use_markup=rofi_data.get('use_markup', True),
+            max_lines=rofi_data.get('max_lines', 15),
+            prompt=rofi_data.get('prompt', "Commands")
+        )
+
+        cache_data = data.get('cache', {})
+        cache = CacheConfig(
+            enabled=cache_data.get('enabled', True),
+            directory=cache_data.get('directory'),
+            auto_cleanup=cache_data.get('auto_cleanup', True)
+        )
+
+        return VclipConfig(
+            sources=sources,
+            rofi=rofi,
+            cache=cache,
+            variables=data.get('variables', {})
+        )
+
+    def _config_to_dict(self, config: VclipConfig) -> Dict[str, Any]:
+        """Convert VclipConfig object to dictionary."""
+        return {
+            'sources': asdict(config.sources),
+            'rofi': asdict(config.rofi),
+            'cache': asdict(config.cache),
+            'variables': config.variables
+        }
+
+    def get_source_files(self) -> List[str]:
+        """Get all source files based on configuration."""
+        if not self.config:
+            self.load_config()
+
+        all_files = []
+
+        # Add explicitly configured files
+        for file_path in self.config.sources.files:
+            path = Path(file_path).expanduser()
+            if path.exists() and path.is_file():
+                all_files.append(str(path))
+
+        # Add files from directories
+        for dir_path in self.config.sources.directories:
+            path = Path(dir_path).expanduser()
+            if path.exists() and path.is_dir():
+                for pattern in self.config.sources.file_patterns:
+                    if self.config.sources.recursive:
+                        files = path.rglob(pattern)
+                    else:
+                        files = path.glob(pattern)
+
+                    for file_path in files:
+                        if file_path.is_file():
+                            all_files.append(str(file_path))
+
+        # Remove duplicates and sort
+        return sorted(list(set(all_files)))
+
+    def create_default_config_file(self) -> bool:
+        """Create default config file if it doesn't exist."""
+        if self.config_path.exists():
+            return True
+
+        default_config = self._get_default_config()
+        return self.save_config(default_config)
+
+
+def main():
+    """CLI interface for testing configuration."""
+    import sys
+
+    action = sys.argv[1] if len(sys.argv) > 1 else "show"
+
+    config_manager = ConfigManager()
+
+    if action == "show":
+        config = config_manager.load_config()
+        print("Current configuration:")
+        print(yaml.dump(config_manager._config_to_dict(config), indent=2))
+
+    elif action == "create":
+        success = config_manager.create_default_config_file()
+        if success:
+            print(f"Created default config at: {config_manager.config_path}")
+        else:
+            print("Failed to create config file")
+
+    elif action == "files":
+        files = config_manager.get_source_files()
+        print(f"Source files ({len(files)}):")
+        for file_path in files:
+            print(f"  {file_path}")
+
+    elif action == "path":
+        print(f"Config file path: {config_manager.config_path}")
+
+    else:
+        print("Usage: python -m cmd_manager.config [show|create|files|path]")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
