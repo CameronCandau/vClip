@@ -1,15 +1,15 @@
 # vclip - Command Snippet Manager
 
-A Python CLI tool that parses markdown files containing command snippets, provides a rofi-based fuzzy search interface, and copies selected commands to clipboard with variable substitution support.
+A Python CLI tool that parses markdown files containing command snippets, provides a rofi-based fuzzy search interface, and copies selected commands to clipboard.
 
 ## Features
 
-- 📝 **Markdown Parser**: Extract code blocks from markdown files with metadata support
+- 📝 **Markdown Parser**: Extract code blocks from markdown files
 - 🔍 **Rofi Integration**: Launch rofi with parsed commands for fuzzy search
 - 📋 **Clipboard Integration**: Copy selected commands using xclip/xsel/wl-copy
 - 🚀 **Caching System**: Parse files once, cache results for fast subsequent loads
 - ⚙️ **Configuration**: YAML config for paths, settings, and customization
-- 🔧 **Variable Substitution**: Support for variables like `$TARGET`, `$URL` in commands
+- 🔧 **Multiple Commands**: Support for multiple code blocks under one heading
 
 ## Installation
 
@@ -21,11 +21,6 @@ sudo apt install rofi xclip
 
 # For Wayland users
 sudo apt install wl-clipboard
-
-# For auto-paste functionality (optional)
-sudo apt install xdotool  # X11 auto-paste
-# OR for Wayland
-sudo apt install wtype    # Wayland auto-paste
 ```
 
 ### Install vclip
@@ -85,9 +80,14 @@ Commands should be written in this format:
 # Category Name
 
 ## Command Description
-<!-- tags: tag1, tag2, tag3 -->
 ```bash
 command goes here
+```
+
+## Another Command
+```
+command without language specified (defaults to bash)
+```
 ```
 
 ### Example
@@ -96,13 +96,11 @@ command goes here
 # System Administration
 
 ## Check disk usage
-<!-- tags: system, disk, monitoring -->
 ```bash
 df -h
 ```
 
 ## View large files
-<!-- tags: system, files, cleanup -->
 ```bash
 find /home -type f -size +100M -exec ls -lh {} \; | awk '{ print $9 ": " $5 }'
 ```
@@ -110,11 +108,34 @@ find /home -type f -size +100M -exec ls -lh {} \; | awk '{ print $9 ": " $5 }'
 # Docker Commands
 
 ## View container logs
-<!-- tags: docker, logs, debugging -->
 ```bash
-docker logs -f $CONTAINER_NAME
+docker logs -f container_name
 ```
 ```
+
+### Multiple Commands Per Heading
+
+You can have multiple code blocks under one heading. They will be distinguished by their language label:
+
+```markdown
+## Enumerate SMB shares
+```bash
+netexec smb $IP --shares
+```
+
+```python
+# Python alternative
+from impacket import smbclient
+```
+```
+
+In rofi, these appear as:
+- `Enumerate SMB shares [bash]`
+- `Enumerate SMB shares [python]`
+
+If no language is specified, numbered labels are used:
+- `Command Name [1]`
+- `Command Name [2]`
 
 ## Configuration
 
@@ -144,12 +165,6 @@ cache:
   enabled: true
   directory: null  # Uses ~/.cache/vclip
   auto_cleanup: true
-
-
-# Variable definitions
-variables:
-  TARGET: "192.168.1.1"
-  USERNAME: "admin"
 ```
 
 ## Usage
@@ -172,78 +187,9 @@ vclip --clear-cache
 
 # Show config path
 vclip --config-path
-
-# Run without prompting for missing variables (ideal for keyboard shortcuts)
-vclip --no-prompt
-
-# Auto-paste commands directly to active window
-vclip --auto-paste
-
-# Combine for perfect keyboard shortcut (recommended)
-vclip --auto-paste --no-prompt
 ```
 
 After selecting a command, it will be copied to your clipboard. Use `Ctrl+Shift+V` (or `Ctrl+V`) to paste it into your terminal.
-
-## Variable Substitution
-
-Commands can contain variables in the format `$VARIABLE_NAME`. When you select a command with variables:
-
-1. vclip first checks for predefined variables in your config
-2. Prompts you for any missing variables
-3. Substitutes all variables before copying to clipboard
-
-Example:
-```bash
-# Command in markdown
-ssh $USER@$HOST -p $PORT
-
-# After substitution
-ssh admin@192.168.1.1 -p 2222
-```
-
-### Non-interactive Mode
-
-Use `--no-prompt` when running from keyboard shortcuts or scripts. This mode:
-- Only substitutes variables defined in your config file
-- Leaves undefined variables as-is (e.g., `$UNDEFINED_VAR` remains unchanged)
-- Never prompts for input, making it perfect for keyboard shortcuts
-
-## Keyboard Shortcuts & Auto-Paste
-
-### Manual Paste (Copy to Clipboard Only)
-```bash
-# Just copy to clipboard
-vclip --no-prompt
-```
-
-### Auto-Paste (Recommended)
-```bash
-# Copy and automatically paste to active window
-vclip --auto-paste --no-prompt
-```
-
-### Setting Up Keyboard Shortcuts
-
-**i3 Window Manager:**
-```
-# Add to ~/.config/i3/config
-bindsym $mod+space exec vclip --auto-paste --no-prompt
-```
-
-**GNOME/Ubuntu:**
-- Settings → Keyboard → Custom Shortcuts
-- Command: `vclip --auto-paste --no-prompt`
-
-**KDE:**
-- System Settings → Shortcuts → Custom Shortcuts
-- Command: `vclip --auto-paste --no-prompt`
-
-### Platform Support
-- **Linux X11**: xdotool, fallback to basic Ctrl+V
-- **Linux Wayland**: wtype
-- **macOS**: AppleScript (Cmd+V)
-- **Windows**: PowerShell SendKeys (Ctrl+V)
 
 ## Testing
 

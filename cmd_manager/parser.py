@@ -13,25 +13,26 @@ class Command:
     """Represents a command snippet with metadata."""
     content: str
     description: str
-    tags: List[str]
     category: str
     source_file: str
+    language: str = ""
     line_number: int = 0
 
     def __post_init__(self):
         """Clean up command content."""
         self.content = self.content.strip()
         self.description = self.description.strip()
-        self.tags = [tag.strip() for tag in self.tags if tag.strip()]
+        self.category = self.category.strip()
+        self.language = self.language.strip()
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             'content': self.content,
             'description': self.description,
-            'tags': self.tags,
             'category': self.category,
             'source_file': self.source_file,
+            'language': self.language,
             'line_number': self.line_number
         }
 
@@ -41,16 +42,17 @@ class Command:
         return cls(
             content=data['content'],
             description=data['description'],
-            tags=data['tags'],
             category=data['category'],
             source_file=data['source_file'],
+            language=data.get('language', ''),
             line_number=data.get('line_number', 0)
         )
 
     def format_for_rofi(self) -> str:
         """Format command for display in rofi."""
-        tags_str = f"({', '.join(self.tags)})" if self.tags else ""
-        return f"{self.description} {tags_str}".strip()
+        if self.language:
+            return f"{self.description} [{self.language}]"
+        return self.description
 
 
 class MarkdownParser:
@@ -76,10 +78,10 @@ class MarkdownParser:
         lines = content.split('\n')
         current_category = ""
         current_description = ""
-        current_tags = []
         in_code_block = False
         code_block_content = []
         code_block_lang = ""
+        description_command_count = {}  # Track how many commands per description
 
         for line_num, line in enumerate(lines, 1):
             line = line.rstrip()
@@ -92,15 +94,6 @@ class MarkdownParser:
             # Check for description headers (## Level 2)
             if line.startswith('## ') and not in_code_block:
                 current_description = line[3:].strip()
-                current_tags = []
-                continue
-
-            # Check for tags in HTML comments
-            if '<!-- tags:' in line and not in_code_block:
-                tags_match = re.search(r'<!-- tags:\s*([^-]+)\s*-->', line)
-                if tags_match:
-                    tags_str = tags_match.group(1)
-                    current_tags = [tag.strip() for tag in tags_str.split(',')]
                 continue
 
             # Check for code block start
@@ -116,19 +109,27 @@ class MarkdownParser:
                 if code_block_content and current_description:
                     # Only include bash/shell code blocks or unspecified
                     if not code_block_lang or code_block_lang.lower() in ['bash', 'sh', 'shell']:
+                        # Track multiple code blocks under same description
+                        if current_description not in description_command_count:
+                            description_command_count[current_description] = 0
+                        description_command_count[current_description] += 1
+
+                        # Determine display language/number
+                        display_lang = code_block_lang if code_block_lang else ""
+                        if description_command_count[current_description] > 1 and not display_lang:
+                            display_lang = str(description_command_count[current_description])
+
                         command = Command(
                             content='\n'.join(code_block_content),
                             description=current_description,
-                            tags=current_tags.copy(),
                             category=current_category,
                             source_file=source_file,
+                            language=display_lang,
                             line_number=line_num - len(code_block_content) - 1
                         )
                         commands.append(command)
 
-                # Reset for next command
-                current_description = ""
-                current_tags = []
+                # Reset for next code block (but keep description for multiple blocks)
                 code_block_content = []
                 code_block_lang = ""
                 continue
@@ -171,7 +172,7 @@ def main():
         for i, cmd in enumerate(commands, 1):
             print(f"{i}. {cmd.description}")
             print(f"   Category: {cmd.category}")
-            print(f"   Tags: {', '.join(cmd.tags) if cmd.tags else 'None'}")
+            print(f"   Language: {cmd.language if cmd.language else 'None'}")
             print(f"   Command: {cmd.content}")
             print(f"   Rofi format: {cmd.format_for_rofi()}")
             print()

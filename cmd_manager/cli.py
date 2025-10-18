@@ -116,8 +116,8 @@ def list_commands(config_manager: ConfigManager) -> int:
                 current_category = cmd.category
                 print(f"# {current_category}")
 
-            tags_str = f" ({', '.join(cmd.tags)})" if cmd.tags else ""
-            print(f"  - {cmd.description}{tags_str}")
+            lang_str = f" [{cmd.language}]" if cmd.language else ""
+            print(f"  - {cmd.description}{lang_str}")
             print(f"    {cmd.content}")
             print()
 
@@ -178,35 +178,11 @@ def main_selection_flow(config_manager: ConfigManager, use_cache: bool = True, n
             print("Install one of: xclip, xsel, wl-copy")
             return 1
 
-        # Handle variable substitution
-        variables = clipboard.get_variables_from_command(selected_command.content)
-        var_values = {}
-
-        if variables:
-            # Use predefined variables from config
-            for var in variables:
-                if var in config.variables:
-                    var_values[var] = config.variables[var]
-                    if not no_prompt:
-                        print(f"  ${var} = {config.variables[var]} (from config)")
-
-            # Only prompt for missing variables if not in no_prompt mode
-            if not no_prompt:
-                missing_vars = [var for var in variables if var not in var_values]
-                if missing_vars:
-                    print(f"Command '{selected_command.description}' has undefined variables:")
-                    for var in missing_vars:
-                        value = input(f"  Enter value for ${var}: ").strip()
-                        if value:
-                            var_values[var] = value
-                        else:
-                            print(f"No value provided for ${var}, leaving as-is")
-
-        # Copy command with substitutions (only substitutes defined variables)
+        # Copy command to clipboard
         if auto_paste:
-            success = clipboard.copy_and_paste_command(selected_command, var_values)
+            success = clipboard.copy_and_paste_command(selected_command)
         else:
-            success = clipboard.copy_command(selected_command, var_values)
+            success = clipboard.copy_command(selected_command)
 
         if success:
             print(f"Copied: {selected_command.description}")

@@ -128,12 +128,12 @@ class RofiInterface:
         """Format command with pango markup for rofi display."""
         # Escape special characters for pango markup
         description = self._escape_markup(command.description)
-        tags = self._escape_markup(", ".join(command.tags)) if command.tags else ""
+        language = self._escape_markup(command.language) if command.language else ""
         category = self._escape_markup(command.category) if command.category else ""
 
         # Format with markup
-        if tags:
-            return f"<b>{description}</b> <i>({tags})</i>"
+        if language:
+            return f"<b>{description}</b> <i>[{language}]</i>"
         else:
             return f"<b>{description}</b>"
 
@@ -163,10 +163,9 @@ class RofiInterface:
         filtered = []
 
         for cmd in commands:
-            # Search in description, tags, category, and command content
+            # Search in description, category, and command content
             searchable_text = " ".join([
                 cmd.description.lower(),
-                " ".join(cmd.tags).lower(),
                 cmd.category.lower(),
                 cmd.content.lower()
             ])
@@ -198,7 +197,7 @@ def main():
         if selected:
             print(f"Selected command: {selected.description}")
             print(f"Command: {selected.content}")
-            print(f"Tags: {', '.join(selected.tags)}")
+            print(f"Language: {selected.language if selected.language else 'None'}")
         else:
             print("No command selected")
 
