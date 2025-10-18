@@ -108,8 +108,8 @@ class MarkdownParser:
             if line.startswith('```') and in_code_block:
                 in_code_block = False
                 if code_block_content and current_description:
-                    # Only include bash/shell code blocks or unspecified
-                    if not code_block_lang or code_block_lang.lower() in ['bash', 'sh', 'shell']:
+                    # Include bash/shell/powershell/cmd code blocks or unspecified
+                    if not code_block_lang or code_block_lang.lower() in ['bash', 'sh', 'shell', 'powershell', 'ps1', 'cmd', 'bat', 'batch']:
                         # Join and check if content has actual commands (not just whitespace/comments)
                         content = '\n'.join(code_block_content)
 
