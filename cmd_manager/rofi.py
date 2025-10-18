@@ -83,6 +83,10 @@ class RofiInterface:
         if not commands:
             return None
 
+        # Use a unique separator between entries so each two-line command is treated as one entry
+        # We use a character sequence that's unlikely to appear in commands or markup
+        ENTRY_SEPARATOR = "\x1f"  # ASCII Unit Separator
+
         # Enhanced rofi args with preview
         enhanced_args = [
             "-dmenu",
@@ -95,13 +99,14 @@ class RofiInterface:
             "-lines", str(min(15, len(commands))),  # Show up to 15 items
             "-width", "60",  # Window width as percentage of screen
             "-eh", "2",  # Element height (2 lines per entry for our two-line format)
+            "-sep", ENTRY_SEPARATOR,  # Use ASCII Unit Separator to separate entries
             "-theme-str", "listview { scrollbar: true; }",  # Show scrollbar
             "-theme-str", "window { width: 60%; }",  # Alternative width setting
         ]
 
         # Format commands with markup for better display
-        # Note: each command is formatted as 2 lines (description + content preview)
-        rofi_input = "\n".join(self._format_command_with_markup(cmd) for cmd in commands)
+        # Each command is 2 lines (description + content preview), separated by unit separators
+        rofi_input = ENTRY_SEPARATOR.join(self._format_command_with_markup(cmd) for cmd in commands)
 
         try:
             result = subprocess.run(
@@ -116,13 +121,10 @@ class RofiInterface:
                 return None
 
             try:
-                # Rofi returns the LINE index, but each command is 2 lines
-                # So we need to divide by 2 to get the command index
-                selected_line_index = int(result.stdout.strip())
-                selected_command_index = selected_line_index // 2
-
-                if 0 <= selected_command_index < len(commands):
-                    return commands[selected_command_index]
+                # Now rofi returns the ENTRY index directly (since we're using custom separator)
+                selected_index = int(result.stdout.strip())
+                if 0 <= selected_index < len(commands):
+                    return commands[selected_index]
             except (ValueError, IndexError):
                 return None
 
