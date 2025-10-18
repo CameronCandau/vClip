@@ -93,9 +93,14 @@ class RofiInterface:
             "-markup-rows",  # Enable markup
             "-columns", "1",
             "-lines", str(min(15, len(commands))),  # Show up to 15 items
+            "-width", "60",  # Window width as percentage of screen
+            "-eh", "2",  # Element height (2 lines per entry for our two-line format)
+            "-theme-str", "listview { scrollbar: true; }",  # Show scrollbar
+            "-theme-str", "window { width: 60%; }",  # Alternative width setting
         ]
 
         # Format commands with markup for better display
+        # Note: each command is formatted as 2 lines (description + content preview)
         rofi_input = "\n".join(self._format_command_with_markup(cmd) for cmd in commands)
 
         try:
@@ -111,9 +116,13 @@ class RofiInterface:
                 return None
 
             try:
-                selected_index = int(result.stdout.strip())
-                if 0 <= selected_index < len(commands):
-                    return commands[selected_index]
+                # Rofi returns the LINE index, but each command is 2 lines
+                # So we need to divide by 2 to get the command index
+                selected_line_index = int(result.stdout.strip())
+                selected_command_index = selected_line_index // 2
+
+                if 0 <= selected_command_index < len(commands):
+                    return commands[selected_command_index]
             except (ValueError, IndexError):
                 return None
 
@@ -129,13 +138,24 @@ class RofiInterface:
         # Escape special characters for pango markup
         description = self._escape_markup(command.description)
         language = self._escape_markup(command.language) if command.language else ""
-        category = self._escape_markup(command.category) if command.category else ""
 
-        # Format with markup
+        # Escape and truncate command content for display
+        cmd_content = self._escape_markup(command.content)
+        # Truncate long commands (keep first line if multiline, or truncate at 80 chars)
+        if '\n' in cmd_content:
+            cmd_content = cmd_content.split('\n')[0] + '...'
+        if len(cmd_content) > 80:
+            cmd_content = cmd_content[:77] + '...'
+
+        # Format with markup: bold description, optional language tag, and command in small dimmed text
+        title_line = f"<b>{description}</b>"
         if language:
-            return f"<b>{description}</b> <i>[{language}]</i>"
-        else:
-            return f"<b>{description}</b>"
+            title_line += f" <i>[{language}]</i>"
+
+        # Add command content on second line with small, dimmed text
+        cmd_line = f"<small><span alpha='60%'>{cmd_content}</span></small>"
+
+        return f"{title_line}\n{cmd_line}"
 
     def _escape_markup(self, text: str) -> str:
         """Escape special characters for pango markup."""

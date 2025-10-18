@@ -33,6 +33,12 @@ rofi:
   # Prompt text
   prompt: "Commands"
 
+  # Window width as percentage of screen (0-100)
+  window_width: 60
+
+  # Element height (lines per entry - use 2 for two-line format with command preview)
+  element_height: 1
+
 # Cache configuration
 cache:
   # Enable caching for faster startup

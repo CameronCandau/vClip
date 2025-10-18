@@ -3,6 +3,7 @@ Markdown parser for extracting command snippets with metadata.
 """
 
 import re
+import hashlib
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
 from pathlib import Path
@@ -109,25 +110,33 @@ class MarkdownParser:
                 if code_block_content and current_description:
                     # Only include bash/shell code blocks or unspecified
                     if not code_block_lang or code_block_lang.lower() in ['bash', 'sh', 'shell']:
-                        # Track multiple code blocks under same description
-                        if current_description not in description_command_count:
-                            description_command_count[current_description] = 0
-                        description_command_count[current_description] += 1
+                        # Join and check if content has actual commands (not just whitespace/comments)
+                        content = '\n'.join(code_block_content)
 
-                        # Determine display language/number
-                        display_lang = code_block_lang if code_block_lang else ""
-                        if description_command_count[current_description] > 1 and not display_lang:
-                            display_lang = str(description_command_count[current_description])
+                        # Filter out empty commands (only whitespace or comments)
+                        non_empty_lines = [line for line in code_block_content if line.strip() and not line.strip().startswith('#')]
 
-                        command = Command(
-                            content='\n'.join(code_block_content),
-                            description=current_description,
-                            category=current_category,
-                            source_file=source_file,
-                            language=display_lang,
-                            line_number=line_num - len(code_block_content) - 1
-                        )
-                        commands.append(command)
+                        # Only add commands that have actual content
+                        if non_empty_lines:
+                            # Track multiple code blocks under same description
+                            if current_description not in description_command_count:
+                                description_command_count[current_description] = 0
+                            description_command_count[current_description] += 1
+
+                            # Determine display language/number
+                            display_lang = code_block_lang if code_block_lang else ""
+                            if description_command_count[current_description] > 1 and not display_lang:
+                                display_lang = str(description_command_count[current_description])
+
+                            command = Command(
+                                content=content,
+                                description=current_description,
+                                category=current_category,
+                                source_file=source_file,
+                                language=display_lang,
+                                line_number=line_num - len(code_block_content) - 1
+                            )
+                            commands.append(command)
 
                 # Reset for next code block (but keep description for multiple blocks)
                 code_block_content = []
@@ -150,7 +159,65 @@ class MarkdownParser:
             except Exception as e:
                 print(f"Error parsing {file_path}: {e}")
 
-        return all_commands
+        # Deduplicate commands
+        return self._deduplicate_commands(all_commands)
+
+    def _deduplicate_commands(self, commands: List[Command]) -> List[Command]:
+        """
+        Deduplicate commands based on content similarity.
+
+        Strategy:
+        1. Commands with identical content hash are removed (keep first occurrence)
+        2. Commands with same description from SAME file are numbered (#1, #2, etc.)
+        3. Commands with same description from DIFFERENT files get source file in description
+        """
+        # First pass: remove exact content duplicates
+        seen_content_hashes = set()
+        unique_by_content = []
+
+        for cmd in commands:
+            content_hash = hashlib.md5(cmd.content.encode()).hexdigest()
+            if content_hash not in seen_content_hashes:
+                seen_content_hashes.add(content_hash)
+                unique_by_content.append(cmd)
+
+        # Second pass: group by (description, source_file) to handle same-file duplicates
+        from collections import defaultdict
+        file_desc_groups = defaultdict(list)
+
+        for cmd in unique_by_content:
+            key = (cmd.description, cmd.source_file)
+            file_desc_groups[key].append(cmd)
+
+        # Third pass: number commands from same file with same description
+        numbered_commands = []
+        for (description, source_file), cmds in file_desc_groups.items():
+            if len(cmds) > 1:
+                # Multiple commands with same description in same file - number them
+                for idx, cmd in enumerate(cmds, 1):
+                    cmd.description = f"{description} #{idx}"
+                    numbered_commands.append(cmd)
+            else:
+                numbered_commands.append(cmds[0])
+
+        # Fourth pass: group by description to handle cross-file duplicates
+        desc_groups = defaultdict(list)
+        for cmd in numbered_commands:
+            desc_groups[cmd.description].append(cmd)
+
+        # Final pass: add source file names to cross-file duplicates
+        deduplicated = []
+        for description, cmds in desc_groups.items():
+            if len(cmds) > 1:
+                # Multiple commands from different files with same description
+                for cmd in cmds:
+                    source_name = Path(cmd.source_file).stem
+                    cmd.description = f"{description} ({source_name})"
+                    deduplicated.append(cmd)
+            else:
+                deduplicated.append(cmds[0])
+
+        return deduplicated
 
 
 def main():

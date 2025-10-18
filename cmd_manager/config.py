@@ -16,6 +16,8 @@ class RofiConfig:
     use_markup: bool = True
     max_lines: int = 15
     prompt: str = "Commands"
+    window_width: int = 60  # Window width as percentage (0-100)
+    element_height: int = 2  # Lines per entry
 
     def get_rofi_args(self) -> List[str]:
         """Get complete rofi arguments list."""
@@ -30,6 +32,16 @@ class RofiConfig:
 
         if self.use_markup:
             base_args.append("-markup-rows")
+
+        # Add window size configuration
+        if self.window_width:
+            base_args.extend(["-width", str(self.window_width)])
+
+        if self.element_height:
+            base_args.extend(["-eh", str(self.element_height)])
+
+        # Add scrollbar for better navigation
+        base_args.extend(["-theme-str", "listview { scrollbar: true; }"])
 
         # Add custom args
         return base_args + self.args
@@ -114,7 +126,9 @@ class ConfigManager:
                 args=[],
                 use_markup=True,
                 max_lines=15,
-                prompt="Commands"
+                prompt="Commands",
+                window_width=60,
+                element_height=2
             ),
             cache=CacheConfig(
                 enabled=True,
@@ -183,7 +197,9 @@ class ConfigManager:
             args=rofi_data.get('args', []),
             use_markup=rofi_data.get('use_markup', True),
             max_lines=rofi_data.get('max_lines', 15),
-            prompt=rofi_data.get('prompt', "Commands")
+            prompt=rofi_data.get('prompt', "Commands"),
+            window_width=rofi_data.get('window_width', 60),
+            element_height=rofi_data.get('element_height', 2)
         )
 
         cache_data = data.get('cache', {})
