@@ -52,9 +52,11 @@ cache:
 
 
 # Variable definitions for command substitution
-# These will be available as $VARIABLE_NAME in commands
+# Variables defined here are substituted silently — never prompted.
+# Variables NOT listed here will trigger a rofi prompt when a command uses them,
+# pre-filled from the last-used value in ~/.cache/vclip/vars.json.
+#
+# Common pre-defines (set these to your VPN/lab IP and wordlist path):
 variables:
-  # Example variables
-  # TARGET: "192.168.1.1"
-  # USERNAME: "admin"
-  # PROJECT_DIR: "/home/user/projects"
+  # LHOST: "10.10.14.5"
+  # WORDLIST: "/usr/share/wordlists/rockyou.txt"

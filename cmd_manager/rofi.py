@@ -167,6 +167,35 @@ class RofiInterface:
                    .replace("'", "&apos;")
                    .replace('"', "&quot;"))
 
+    def prompt_input(self, prompt: str, default: str = '') -> Optional[str]:
+        """
+        Show a rofi text-input dialog and return what the user typed.
+
+        Args:
+            prompt: Label shown next to the input field.
+            default: Pre-filled value (user can clear or keep it).
+
+        Returns:
+            The entered string (may be empty), or None if user cancelled (ESC).
+        """
+        args = ['rofi', '-dmenu', '-p', prompt, '-lines', '0', '-i']
+        if default:
+            args += ['-filter', default]
+
+        try:
+            result = subprocess.run(
+                args,
+                input='',
+                text=True,
+                capture_output=True,
+                check=False
+            )
+            if result.returncode != 0:
+                return None
+            return result.stdout.strip()
+        except FileNotFoundError:
+            raise RuntimeError("rofi not found. Please install rofi: sudo apt install rofi")
+
     def filter_commands(self, commands: List[Command], query: str) -> List[Command]:
         """
         Filter commands based on a search query.

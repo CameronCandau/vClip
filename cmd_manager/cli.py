@@ -170,19 +170,19 @@ def main_selection_flow(config_manager: ConfigManager, use_cache: bool = True, n
             # User cancelled selection
             return 0
 
-        # Initialize clipboard manager
-        clipboard = ClipboardManager()
+        # Initialize clipboard manager with config-defined variables
+        clipboard = ClipboardManager(config.variables)
 
         if not clipboard.check_clipboard_availability():
             print("No clipboard tools available!")
             print("Install one of: xclip, xsel, wl-copy")
             return 1
 
-        # Copy command to clipboard
+        # Copy command to clipboard (variable substitution happens inside)
         if auto_paste:
-            success = clipboard.copy_and_paste_command(selected_command)
+            success = clipboard.copy_and_paste_command(selected_command, rofi=rofi, no_prompt=no_prompt)
         else:
-            success = clipboard.copy_command(selected_command)
+            success = clipboard.copy_command(selected_command, rofi=rofi, no_prompt=no_prompt)
 
         if success:
             print(f"Copied: {selected_command.description}")
