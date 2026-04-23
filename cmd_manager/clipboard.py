@@ -3,7 +3,6 @@ Clipboard integration for copying commands.
 """
 
 import subprocess
-import re
 import time
 import platform
 from typing import Dict, Optional
@@ -86,48 +85,102 @@ class ClipboardManager:
 
         return False
 
-    def copy_command(self, command: Command, rofi=None, no_prompt: bool = False) -> bool:
+    def prepare_command_text(
+        self,
+        command: Command,
+        rofi=None,
+        no_prompt: bool = False,
+        substitute_variables: bool = False
+    ) -> Optional[str]:
         """
-        Copy command to clipboard, substituting variables if present.
+        Prepare command text for clipboard copy.
 
-        If the command contains $UPPERCASE_VARS, prompts the user via rofi for values,
-        pre-filled from the session cache. Config-defined vars are substituted silently.
-        If the user cancels (ESC), the literal command is copied unchanged.
+        Args:
+            command: Command object to render
+            rofi: RofiInterface instance for prompting (None skips interactive prompts)
+            no_prompt: If True, use config + cache only, no interactive prompts
+            substitute_variables: If True, resolve and substitute $VARS before copying
+
+        Returns:
+            Final text to copy, or None if user cancelled.
+        """
+        text = command.content
+
+        if not substitute_variables or not VariableDetector.has_variables(text):
+            return text
+
+        variables = VariableDetector.detect(text)
+        values = self._substitutor.resolve(variables, rofi=rofi, no_prompt=no_prompt)
+        if values is None:
+            return None
+
+        return VariableDetector.substitute(text, values)
+
+    def copy_command(
+        self,
+        command: Command,
+        rofi=None,
+        no_prompt: bool = False,
+        substitute_variables: bool = False
+    ) -> bool:
+        """
+        Copy command to clipboard.
+
+        If variable substitution is enabled and the command contains $UPPERCASE_VARS,
+        prompts the user via rofi for values, pre-filled from the session cache.
+        Config-defined vars are substituted silently. If the user cancels (ESC),
+        the copy is aborted.
 
         Args:
             command: Command object to copy
             rofi: RofiInterface instance for prompting (None skips interactive prompts)
             no_prompt: If True, use config + cache only, no interactive prompts
+            substitute_variables: If True, resolve and substitute $VARS before copying
 
         Returns:
             True if successful, False otherwise
         """
-        text = command.content
-
-        if VariableDetector.has_variables(text):
-            variables = VariableDetector.detect(text)
-            values = self._substitutor.resolve(variables, rofi=rofi, no_prompt=no_prompt)
-            if values is not None:
-                text = VariableDetector.substitute(text, values)
-            # values is None → user cancelled → copy literal (text unchanged)
+        text = self.prepare_command_text(
+            command,
+            rofi=rofi,
+            no_prompt=no_prompt,
+            substitute_variables=substitute_variables
+        )
+        if text is None:
+            return False
 
         return self.copy_to_clipboard(text)
 
-    def copy_and_paste_command(self, command: Command, rofi=None, no_prompt: bool = False) -> bool:
+    def copy_and_paste_command(
+        self,
+        command: Command,
+        rofi=None,
+        no_prompt: bool = False,
+        substitute_variables: bool = False
+    ) -> bool:
         """
-        Copy command to clipboard (with variable substitution) and automatically paste it.
+        Copy command to clipboard and automatically paste it.
 
         Args:
             command: Command object to copy and paste
             rofi: RofiInterface instance for variable prompting
             no_prompt: If True, use config + cache only, no interactive prompts
+            substitute_variables: If True, resolve and substitute $VARS before copying
 
         Returns:
             True if successful, False otherwise
         """
-        if not self.copy_command(command, rofi=rofi, no_prompt=no_prompt):
+        text = self.prepare_command_text(
+            command,
+            rofi=rofi,
+            no_prompt=no_prompt,
+            substitute_variables=substitute_variables
+        )
+        if text is None:
             return False
-        return self._auto_paste(command.content)
+        if not self.copy_to_clipboard(text):
+            return False
+        return self._auto_paste(text)
 
     def _auto_paste(self, text: str) -> bool:
         """

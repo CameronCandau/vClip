@@ -2,6 +2,8 @@
 
 A Python CLI tool that parses markdown files containing command snippets, provides a rofi-based fuzzy search interface, and copies selected commands to clipboard.
 
+By default, `vclip` copies commands exactly as written. Variable substitution is optional and can be toggled from inside the rofi menu.
+
 ## Features
 
 - 📝 **Markdown Parser**: Extract code blocks from markdown files
@@ -165,6 +167,13 @@ cache:
   enabled: true
   directory: null  # Uses ~/.cache/vclip
   auto_cleanup: true
+
+# Copy commands exactly as written by default
+substitute_variables: false
+
+# Optional variables for substitution when the mode is enabled
+variables:
+  # HOST: "10.10.10.10"
 ```
 
 ## Usage
@@ -190,6 +199,8 @@ vclip --config-path
 ```
 
 After selecting a command, it will be copied to your clipboard. Use `Ctrl+Shift+V` (or `Ctrl+V`) to paste it into your terminal.
+
+The rofi list includes a `[Settings] Variable substitution: OFF/ON` entry. Select it to toggle substitution mode and persist that choice in your config.
 
 ## Testing
 

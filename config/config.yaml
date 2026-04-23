@@ -50,6 +50,9 @@ cache:
   # Automatically clean up invalid cache files
   auto_cleanup: true
 
+# Copy commands exactly as written by default.
+# Toggle this inside the rofi menu via the "[Settings] Variable substitution" entry.
+substitute_variables: false
 
 # Variable definitions for command substitution
 # Variables defined here are substituted silently — never prompted.

@@ -24,6 +24,7 @@ class TestConfigManager:
             assert isinstance(config.sources, SourceConfig)
             assert isinstance(config.rofi, RofiConfig)
             assert isinstance(config.cache, CacheConfig)
+            assert config.substitute_variables is False
             assert isinstance(config.variables, dict)
 
     def test_load_config_from_file(self):
@@ -76,6 +77,9 @@ class TestConfigManager:
             assert config.cache.directory == '/custom/cache'
             assert config.cache.auto_cleanup is False
 
+            # Check substitution mode
+            assert config.substitute_variables is False
+
             # Check variables
             assert config.variables == {'TEST_VAR': 'test_value'}
 
@@ -107,6 +111,7 @@ class TestConfigManager:
                     directory=None,
                     auto_cleanup=True
                 ),
+                substitute_variables=True,
                 variables={'VAR': 'value'}
             )
 
@@ -121,6 +126,7 @@ class TestConfigManager:
 
             assert saved_data['sources']['files'] == ['/test.md']
             assert saved_data['rofi']['prompt'] == 'Commands'
+            assert saved_data['substitute_variables'] is True
             assert saved_data['variables'] == {'VAR': 'value'}
 
     def test_get_source_files_explicit_files(self):

@@ -74,6 +74,7 @@ class VclipConfig:
     sources: SourceConfig
     rofi: RofiConfig
     cache: CacheConfig
+    substitute_variables: bool = False
     variables: Dict[str, str] = None
 
     def __post_init__(self):
@@ -135,6 +136,7 @@ class ConfigManager:
                 directory=None,  # Will use default cache directory
                 auto_cleanup=True
             ),
+            substitute_variables=False,
             variables={}
         )
 
@@ -213,6 +215,7 @@ class ConfigManager:
             sources=sources,
             rofi=rofi,
             cache=cache,
+            substitute_variables=data.get('substitute_variables', False),
             variables=data.get('variables', {})
         )
 
@@ -222,6 +225,7 @@ class ConfigManager:
             'sources': asdict(config.sources),
             'rofi': asdict(config.rofi),
             'cache': asdict(config.cache),
+            'substitute_variables': config.substitute_variables,
             'variables': config.variables
         }
 

@@ -11,6 +11,7 @@ from .config import ConfigManager
 from .cache import CachedMarkdownParser
 from .rofi import RofiInterface
 from .clipboard import ClipboardManager
+from .parser import Command
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -159,16 +160,38 @@ def main_selection_flow(config_manager: ConfigManager, use_cache: bool = True, n
 
         # Initialize rofi interface
         rofi = RofiInterface(config.rofi.get_rofi_args())
+        substitute_variables = config.substitute_variables
 
-        # Select command
-        if config.rofi.use_markup:
-            selected_command = rofi.select_command_with_preview(commands)
-        else:
-            selected_command = rofi.select_command(commands)
+        while True:
+            mode_label = "ON" if substitute_variables else "OFF"
+            toggle_entry = Command(
+                content=(
+                    "Toggle variable substitution for clipboard copies.\n"
+                    f"Current default: {mode_label}. This setting is saved to your config."
+                ),
+                description=f"[Settings] Variable substitution: {mode_label}",
+                category="Settings",
+                source_file="__vclip_meta__"
+            )
+            menu_commands = [toggle_entry] + commands
 
-        if not selected_command:
-            # User cancelled selection
-            return 0
+            if config.rofi.use_markup:
+                selected_command = rofi.select_command_with_preview(menu_commands)
+            else:
+                selected_command = rofi.select_command(menu_commands)
+
+            if not selected_command:
+                # User cancelled selection
+                return 0
+
+            if selected_command.source_file == "__vclip_meta__":
+                substitute_variables = not substitute_variables
+                config.substitute_variables = substitute_variables
+                config_manager.config = config
+                config_manager.save_config(config)
+                continue
+
+            break
 
         # Initialize clipboard manager with config-defined variables
         clipboard = ClipboardManager(config.variables)
@@ -180,9 +203,19 @@ def main_selection_flow(config_manager: ConfigManager, use_cache: bool = True, n
 
         # Copy command to clipboard (variable substitution happens inside)
         if auto_paste:
-            success = clipboard.copy_and_paste_command(selected_command, rofi=rofi, no_prompt=no_prompt)
+            success = clipboard.copy_and_paste_command(
+                selected_command,
+                rofi=rofi,
+                no_prompt=no_prompt,
+                substitute_variables=substitute_variables
+            )
         else:
-            success = clipboard.copy_command(selected_command, rofi=rofi, no_prompt=no_prompt)
+            success = clipboard.copy_command(
+                selected_command,
+                rofi=rofi,
+                no_prompt=no_prompt,
+                substitute_variables=substitute_variables
+            )
 
         if success:
             print(f"Copied: {selected_command.description}")
