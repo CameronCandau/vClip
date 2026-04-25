@@ -78,11 +78,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Install via pipx (recommended - isolated environment)
-cd /home/exis/code/vclip
+cd /home/CameronCandau/code/vclip
 pipx install .
 
 # Verify installation
-which vclip  # Should show: /home/exis/.local/bin/vclip
+which vclip  # Should show: /home/CameronCandau/.local/bin/vclip
 vclip --version  # Should show: vclip 0.1.0
 ```
 
@@ -116,11 +116,11 @@ vclip --create-config      # Create default config file
 ### Configuration
 
 **User Config**: `~/.config/vclip/config.yaml` (auto-created on first run)
-**Default Config**: `/home/exis/code/vclip/config/config.yaml` (template)
+**Default Config**: `/home/CameronCandau/code/vclip/config/config.yaml` (template)
 **Cache**: `~/.cache/vclip/commands_*.json`
 
 **Current Source Directories:**
-- `/home/exis/Veilcat-OSCP-Methodology/` (primary)
+- `/home/CameronCandau/Veilcat-OSCP-Methodology/` (primary)
   - Active Directory/
   - Service Enumeration/
   - Local Privilege Escalation/
@@ -427,14 +427,14 @@ vclip --list-files
 
 **Changes not applying after editing code**
 - Must reinstall: `pipx uninstall vclip && pipx install .`
-- pipx uses isolated venv at `/home/exis/.local/pipx/venvs/vclip/`
+- pipx uses isolated venv at `/home/CameronCandau/.local/pipx/venvs/vclip/`
 - Running `./vclip` from source != installed `vclip` command
 
 **Import errors after changes**
-- Check if you're in the right directory: `/home/exis/code/vclip`
+- Check if you're in the right directory: `/home/CameronCandau/code/vclip`
 - Verify pipx installation: `which vclip`
-- Should show: `/home/exis/.local/bin/vclip`
-- Not: `/home/exis/code/vclip/vclip`
+- Should show: `/home/CameronCandau/.local/bin/vclip`
+- Not: `/home/CameronCandau/code/vclip/vclip`
 
 ---
 

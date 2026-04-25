@@ -1,23 +1,18 @@
 # vclip configuration file
-# This is the default configuration for the command snippet manager
+# Named workspaces let you switch source sets without changing config paths.
 
-# Source configuration - where to find markdown files
-sources:
-  # Explicit file paths
-  files: []
+default_workspace: default
 
-  # Directories to search for markdown files
-  directories:
-    - "~/Documents/commands"
-    - "~/.local/share/vclip"
-
-  # Search directories recursively
-  recursive: true
-
-  # File patterns to match
-  file_patterns:
-    - "*.md"
-    - "*.markdown"
+workspaces:
+  default:
+    files: []
+    directories:
+      - "~/Documents/commands"
+      - "~/.local/share/vclip"
+    recursive: true
+    file_patterns:
+      - "*.md"
+      - "*.markdown"
 
 # Rofi interface configuration
 rofi:
@@ -37,7 +32,7 @@ rofi:
   window_width: 60
 
   # Element height (lines per entry - use 2 for two-line format with command preview)
-  element_height: 1
+  element_height: 2
 
 # Cache configuration
 cache:
@@ -58,8 +53,6 @@ substitute_variables: false
 # Variables defined here are substituted silently — never prompted.
 # Variables NOT listed here will trigger a rofi prompt when a command uses them,
 # pre-filled from the last-used value in ~/.cache/vclip/vars.json.
-#
-# Common pre-defines (set these to your VPN/lab IP and wordlist path):
 variables:
   # LHOST: "10.10.14.5"
   # WORDLIST: "/usr/share/wordlists/rockyou.txt"

@@ -6,7 +6,7 @@ import os
 import yaml
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 
 @dataclass
@@ -71,9 +71,11 @@ class CacheConfig:
 @dataclass
 class VclipConfig:
     """Main configuration class for vclip."""
-    sources: SourceConfig
+    sources: Optional[SourceConfig]
     rofi: RofiConfig
     cache: CacheConfig
+    workspaces: Dict[str, SourceConfig] = field(default_factory=dict)
+    default_workspace: Optional[str] = None
     substitute_variables: bool = False
     variables: Dict[str, str] = None
 
@@ -112,17 +114,20 @@ class ConfigManager:
     def _get_default_config(self) -> VclipConfig:
         """Get default configuration."""
         home_dir = Path.home()
+        default_sources = SourceConfig(
+            files=[],
+            directories=[
+                str(home_dir / 'Documents' / 'commands'),
+                str(home_dir / '.local' / 'share' / 'vclip'),
+            ],
+            recursive=True,
+            file_patterns=["*.md", "*.markdown"]
+        )
 
         return VclipConfig(
-            sources=SourceConfig(
-                files=[],
-                directories=[
-                    str(home_dir / 'Documents' / 'commands'),
-                    str(home_dir / '.local' / 'share' / 'vclip'),
-                ],
-                recursive=True,
-                file_patterns=["*.md", "*.markdown"]
-            ),
+            sources=None,
+            workspaces={'default': default_sources},
+            default_workspace='default',
             rofi=RofiConfig(
                 args=[],
                 use_markup=True,
@@ -186,13 +191,20 @@ class ConfigManager:
 
     def _dict_to_config(self, data: Dict[str, Any]) -> VclipConfig:
         """Convert dictionary to VclipConfig object."""
-        sources_data = data.get('sources', {})
-        sources = SourceConfig(
-            files=sources_data.get('files', []),
-            directories=sources_data.get('directories', []),
-            recursive=sources_data.get('recursive', True),
-            file_patterns=sources_data.get('file_patterns', ["*.md", "*.markdown"])
-        )
+        sources = None
+        sources_data = data.get('sources')
+        if isinstance(sources_data, dict):
+            sources = self._parse_source_config(sources_data)
+
+        workspaces_data = data.get('workspaces', {})
+        workspaces = {
+            name: self._parse_source_config(workspace_data)
+            for name, workspace_data in workspaces_data.items()
+            if isinstance(workspace_data, dict)
+        }
+
+        if not workspaces and sources is not None:
+            workspaces = {'default': sources}
 
         rofi_data = data.get('rofi', {})
         rofi = RofiConfig(
@@ -213,41 +225,144 @@ class ConfigManager:
 
         return VclipConfig(
             sources=sources,
+            workspaces=workspaces,
+            default_workspace=data.get('default_workspace') or self._get_initial_default_workspace(workspaces),
             rofi=rofi,
             cache=cache,
             substitute_variables=data.get('substitute_variables', False),
             variables=data.get('variables', {})
         )
 
+    def _parse_source_config(self, data: Dict[str, Any]) -> SourceConfig:
+        """Convert source configuration dictionary into SourceConfig."""
+        return SourceConfig(
+            files=data.get('files', []),
+            directories=data.get('directories', []),
+            recursive=data.get('recursive', True),
+            file_patterns=data.get('file_patterns', ["*.md", "*.markdown"])
+        )
+
+    def _get_initial_default_workspace(self, workspaces: Dict[str, SourceConfig]) -> Optional[str]:
+        """Pick a default workspace when one is not explicitly configured."""
+        if 'default' in workspaces:
+            return 'default'
+        if workspaces:
+            return sorted(workspaces.keys())[0]
+        return None
+
     def _config_to_dict(self, config: VclipConfig) -> Dict[str, Any]:
         """Convert VclipConfig object to dictionary."""
-        return {
-            'sources': asdict(config.sources),
+        config_dict = {
             'rofi': asdict(config.rofi),
             'cache': asdict(config.cache),
             'substitute_variables': config.substitute_variables,
             'variables': config.variables
         }
 
-    def get_source_files(self) -> List[str]:
-        """Get all source files based on configuration."""
+        if config.default_workspace:
+            config_dict['default_workspace'] = config.default_workspace
+
+        if config.workspaces:
+            config_dict['workspaces'] = {
+                name: asdict(source_config)
+                for name, source_config in config.workspaces.items()
+            }
+        elif config.sources is not None:
+            config_dict['sources'] = asdict(config.sources)
+
+        return config_dict
+
+    def get_workspace_names(self) -> List[str]:
+        """Return configured workspace names."""
         if not self.config:
             self.load_config()
 
+        return sorted(self.config.workspaces.keys())
+
+    def get_default_workspace(self) -> Optional[str]:
+        """Return the configured default workspace."""
+        if not self.config:
+            self.load_config()
+
+        default_workspace = self.config.default_workspace
+        if default_workspace in self.config.workspaces:
+            return default_workspace
+
+        return self._get_initial_default_workspace(self.config.workspaces)
+
+    def get_source_files(
+        self,
+        workspace: Optional[str] = None,
+        all_workspaces: bool = False
+    ) -> List[str]:
+        """Get source files for a workspace, or across all workspaces."""
+        if not self.config:
+            self.load_config()
+
+        source_configs = self._get_selected_source_configs(workspace, all_workspaces)
+        all_files: List[str] = []
+
+        for source_config in source_configs:
+            all_files.extend(self._collect_source_files(source_config))
+
+        # Remove duplicates and sort
+        return sorted(list(set(all_files)))
+
+    def get_workspace_file_map(self, workspace: Optional[str] = None) -> Dict[str, str]:
+        """Return a mapping of source file to workspace name."""
+        if not self.config:
+            self.load_config()
+
+        workspace_file_map: Dict[str, str] = {}
+
+        for workspace_name, source_config in self.config.workspaces.items():
+            if workspace and workspace_name != workspace:
+                continue
+
+            for file_path in self._collect_source_files(source_config):
+                workspace_file_map[file_path] = workspace_name
+
+        return workspace_file_map
+
+    def _get_selected_source_configs(
+        self,
+        workspace: Optional[str],
+        all_workspaces: bool
+    ) -> List[SourceConfig]:
+        """Resolve the source configs addressed by the current CLI mode."""
+        if all_workspaces:
+            return [self.config.workspaces[name] for name in self.get_workspace_names()]
+
+        if workspace:
+            if workspace not in self.config.workspaces:
+                raise ValueError(f"Workspace not found: {workspace}")
+            return [self.config.workspaces[workspace]]
+
+        default_workspace = self.get_default_workspace()
+        if default_workspace:
+            return [self.config.workspaces[default_workspace]]
+
+        if self.config.sources is not None:
+            return [self.config.sources]
+
+        return []
+
+    def _collect_source_files(self, source_config: SourceConfig) -> List[str]:
+        """Collect files for a single source configuration."""
         all_files = []
 
         # Add explicitly configured files
-        for file_path in self.config.sources.files:
+        for file_path in source_config.files:
             path = Path(file_path).expanduser()
             if path.exists() and path.is_file():
                 all_files.append(str(path))
 
         # Add files from directories
-        for dir_path in self.config.sources.directories:
+        for dir_path in source_config.directories:
             path = Path(dir_path).expanduser()
             if path.exists() and path.is_dir():
-                for pattern in self.config.sources.file_patterns:
-                    if self.config.sources.recursive:
+                for pattern in source_config.file_patterns:
+                    if source_config.recursive:
                         files = path.rglob(pattern)
                     else:
                         files = path.glob(pattern)
@@ -256,7 +371,6 @@ class ConfigManager:
                         if file_path.is_file():
                             all_files.append(str(file_path))
 
-        # Remove duplicates and sort
         return sorted(list(set(all_files)))
 
     def create_default_config_file(self) -> bool:

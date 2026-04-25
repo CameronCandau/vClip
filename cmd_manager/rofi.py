@@ -3,7 +3,8 @@ Rofi integration for command selection.
 """
 
 import subprocess
-from typing import List, Optional, Tuple
+from pathlib import Path
+from typing import List, Optional, Union
 from .parser import Command
 
 
@@ -25,6 +26,39 @@ class RofiInterface:
             "-no-custom",  # don't allow custom input
         ]
 
+    def select_workspace(self, workspaces: List[str], include_all: bool = False) -> Optional[str]:
+        """Display workspace names in rofi and return the selection."""
+        if not workspaces:
+            return None
+
+        entries = list(workspaces)
+        if include_all:
+            entries.append("All Workspaces")
+
+        selected_index = self._run_rofi_index(
+            entries,
+            ["-dmenu", "-i", "-p", "Workspace", "-format", "i", "-no-custom"]
+        )
+        if selected_index is None:
+            return None
+
+        selected_value = entries[selected_index]
+        if selected_value == "All Workspaces":
+            return "__all__"
+
+        return selected_value
+
+    def select_document(self, documents: List[str]) -> Optional[str]:
+        """Display source document names in rofi and return the selection."""
+        selected_index = self._run_rofi_index(
+            documents,
+            ["-dmenu", "-i", "-p", "Document", "-format", "i", "-no-custom"]
+        )
+        if selected_index is None:
+            return None
+
+        return documents[selected_index]
+
     def select_command(self, commands: List[Command]) -> Optional[Command]:
         """
         Display commands in rofi and return selected command.
@@ -39,34 +73,15 @@ class RofiInterface:
             return None
 
         # Prepare rofi input - each line is a command formatted for display
-        rofi_input = "\n".join(cmd.format_for_rofi() for cmd in commands)
+        selected_index = self._run_rofi_index(
+            [self._format_command_plain(cmd) for cmd in commands],
+            self.rofi_args
+        )
+        if selected_index is None:
+            return None
 
-        try:
-            # Run rofi and get the selected index
-            result = subprocess.run(
-                ["rofi"] + self.rofi_args,
-                input=rofi_input,
-                text=True,
-                capture_output=True,
-                check=False
-            )
-
-            # Check if user cancelled (ESC pressed)
-            if result.returncode != 0:
-                return None
-
-            # Parse the returned index
-            try:
-                selected_index = int(result.stdout.strip())
-                if 0 <= selected_index < len(commands):
-                    return commands[selected_index]
-            except (ValueError, IndexError):
-                return None
-
-        except FileNotFoundError:
-            raise RuntimeError("rofi not found. Please install rofi: sudo apt install rofi")
-        except Exception as e:
-            raise RuntimeError(f"Error running rofi: {e}")
+        if 0 <= selected_index < len(commands):
+            return commands[selected_index]
 
         return None
 
@@ -107,31 +122,12 @@ class RofiInterface:
         # Format commands with markup for better display
         # Each command is 2 lines (description + content preview), separated by unit separators
         rofi_input = ENTRY_SEPARATOR.join(self._format_command_with_markup(cmd) for cmd in commands)
+        selected_index = self._run_rofi_index(rofi_input, enhanced_args, use_joined_input=True)
+        if selected_index is None:
+            return None
 
-        try:
-            result = subprocess.run(
-                ["rofi"] + enhanced_args,
-                input=rofi_input,
-                text=True,
-                capture_output=True,
-                check=False
-            )
-
-            if result.returncode != 0:
-                return None
-
-            try:
-                # Now rofi returns the ENTRY index directly (since we're using custom separator)
-                selected_index = int(result.stdout.strip())
-                if 0 <= selected_index < len(commands):
-                    return commands[selected_index]
-            except (ValueError, IndexError):
-                return None
-
-        except FileNotFoundError:
-            raise RuntimeError("rofi not found. Please install rofi: sudo apt install rofi")
-        except Exception as e:
-            raise RuntimeError(f"Error running rofi: {e}")
+        if 0 <= selected_index < len(commands):
+            return commands[selected_index]
 
         return None
 
@@ -140,6 +136,7 @@ class RofiInterface:
         # Escape special characters for pango markup
         description = self._escape_markup(command.description)
         language = self._escape_markup(command.language) if command.language else ""
+        source_context = self._escape_markup(self._build_source_context(command))
 
         # Escape and truncate command content for display
         cmd_content = self._escape_markup(command.content)
@@ -154,10 +151,59 @@ class RofiInterface:
         if language:
             title_line += f" <i>[{language}]</i>"
 
-        # Add command content on second line with small, dimmed text
-        cmd_line = f"<small><span alpha='60%'>{cmd_content}</span></small>"
+        context_suffix = f"  <span alpha='50%'>{source_context}</span>" if source_context else ""
+        cmd_line = f"<small><span alpha='60%'>{cmd_content}</span>{context_suffix}</small>"
 
         return f"{title_line}\n{cmd_line}"
+
+    def _format_command_plain(self, command: Command) -> str:
+        """Format command for non-markup rofi mode."""
+        description = command.format_for_rofi()
+        source_context = self._build_source_context(command)
+        if source_context:
+            return f"{description} - {source_context}"
+        return description
+
+    def _build_source_context(self, command: Command) -> str:
+        """Build a short source label for display."""
+        doc_name = Path(command.source_file).stem
+        if command.workspace:
+            return f"{command.workspace} / {doc_name}"
+        return doc_name
+
+    def _run_rofi_index(
+        self,
+        entries: Union[List[str], str],
+        args: List[str],
+        use_joined_input: bool = False
+    ) -> Optional[int]:
+        """Run rofi and return the selected index."""
+        if use_joined_input:
+            rofi_input = entries
+        else:
+            rofi_input = "\n".join(entries)
+
+        try:
+            result = subprocess.run(
+                ["rofi"] + args,
+                input=rofi_input,
+                text=True,
+                capture_output=True,
+                check=False
+            )
+
+            if result.returncode != 0:
+                return None
+
+            try:
+                return int(result.stdout.strip())
+            except ValueError:
+                return None
+
+        except FileNotFoundError:
+            raise RuntimeError("rofi not found. Please install rofi: sudo apt install rofi")
+        except Exception as e:
+            raise RuntimeError(f"Error running rofi: {e}")
 
     def _escape_markup(self, text: str) -> str:
         """Escape special characters for pango markup."""

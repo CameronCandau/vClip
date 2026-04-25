@@ -16,6 +16,7 @@ class Command:
     description: str
     category: str
     source_file: str
+    workspace: str = ""
     language: str = ""
     line_number: int = 0
 
@@ -24,6 +25,7 @@ class Command:
         self.content = self.content.strip()
         self.description = self.description.strip()
         self.category = self.category.strip()
+        self.workspace = self.workspace.strip()
         self.language = self.language.strip()
 
     def to_dict(self) -> Dict[str, Any]:
@@ -33,6 +35,7 @@ class Command:
             'description': self.description,
             'category': self.category,
             'source_file': self.source_file,
+            'workspace': self.workspace,
             'language': self.language,
             'line_number': self.line_number
         }
@@ -45,6 +48,7 @@ class Command:
             description=data['description'],
             category=data['category'],
             source_file=data['source_file'],
+            workspace=data.get('workspace', ''),
             language=data.get('language', ''),
             line_number=data.get('line_number', 0)
         )
