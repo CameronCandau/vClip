@@ -8,6 +8,7 @@ import argparse
 from pathlib import Path
 from typing import List, Optional
 
+from . import __version__
 from .config import ConfigManager
 from .cache import CachedMarkdownParser
 from .rofi import RofiInterface
@@ -115,7 +116,7 @@ Examples:
     parser.add_argument(
         "--version", "-v",
         action="version",
-        version="opindex 0.1.0"
+        version=f"opindex {__version__}"
     )
 
     return parser

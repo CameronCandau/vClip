@@ -228,6 +228,8 @@ The package is prepared for Trusted Publishing from GitHub Actions. See:
 
 - [PUBLISHING.md](PUBLISHING.md)
 
+Releases publish to PyPI from pushed tags in the form `v<semver>`.
+
 ## License
 
 MIT

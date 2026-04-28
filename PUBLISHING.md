@@ -25,7 +25,7 @@ opindex
 3. Point that publisher at:
    - owner: `CameronCandau`
    - repository: `OpIndex`
-   - workflow: `release.yml`
+   - workflow: `publish-pypi.yml`
 4. Optionally require a GitHub environment named `pypi`.
 
 References:
@@ -38,11 +38,10 @@ References:
 1. Update version metadata in:
    - `pyproject.toml`
    - `cmd_manager/__init__.py`
-   - `cmd_manager/cli.py` if the CLI version string changes
 2. Run tests locally.
-3. Commit and tag the release.
-4. Create a GitHub release from the tag.
-5. GitHub Actions will build and publish automatically.
+3. Commit the release.
+4. Push a tag in the form `v<semver>`, for example `v0.1.0`.
+5. GitHub Actions will validate the tag against package metadata, then build and publish automatically.
 
 ## Local verification
 
@@ -66,7 +65,10 @@ python3 -m twine check dist/*
 
 ## Notes
 
-- The release workflow publishes only on GitHub release events.
+- The publish workflow runs only for pushed tags matching `v<semver>`.
+- The workflow validates that the tag version matches both `pyproject.toml` and `cmd_manager/__init__.py`.
+- GitHub Releases are optional; they are not the publication trigger.
+- The previous GitHub Release `published` trigger is retired and should not be used for future releases.
 - The workflow uses OIDC Trusted Publishing and does not need a long-lived PyPI API token.
 - Local `build` and `twine check` are for verification only, not publication.
 - If `opindex` is unavailable when you finally publish, change the distribution name in `pyproject.toml` and update this document before release.
