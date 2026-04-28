@@ -1,5 +1,5 @@
 """
-Variable detection and substitution for vclip commands.
+Variable detection and substitution for OpIndex commands.
 """
 
 import re
@@ -48,7 +48,7 @@ class VariableSubstitutor:
     def _cache_path(self) -> Path:
         xdg = os.environ.get('XDG_CACHE_HOME')
         base = Path(xdg) if xdg else Path.home() / '.cache'
-        return base / 'vclip' / 'vars.json'
+        return base / 'opindex' / 'vars.json'
 
     def _load_cache(self) -> Dict[str, str]:
         try:

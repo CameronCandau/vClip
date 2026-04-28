@@ -1,8 +1,8 @@
 """
-vclip - Command Snippet Manager
+OpIndex
 
-A CLI tool for managing and searching command snippets from markdown files.
+A CLI tool for capturing and retrieving reusable command knowledge from markdown notes.
 """
 
 __version__ = "0.1.0"
-__author__ = "vclip"
+__author__ = "Cameron Candau"

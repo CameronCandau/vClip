@@ -1,4 +1,4 @@
-# vclip configuration file
+# OpIndex configuration file
 # Named workspaces let you switch source sets without changing config paths.
 
 default_workspace: default
@@ -8,7 +8,7 @@ workspaces:
     files: []
     directories:
       - "~/Documents/commands"
-      - "~/.local/share/vclip"
+      - "~/.local/share/opindex"
     recursive: true
     file_patterns:
       - "*.md"
@@ -39,7 +39,7 @@ cache:
   # Enable caching for faster startup
   enabled: true
 
-  # Cache directory (null means use default: ~/.cache/vclip)
+  # Cache directory (null means use default: ~/.cache/opindex)
   directory: null
 
   # Automatically clean up invalid cache files
@@ -52,7 +52,7 @@ substitute_variables: false
 # Variable definitions for command substitution
 # Variables defined here are substituted silently — never prompted.
 # Variables NOT listed here will trigger a rofi prompt when a command uses them,
-# pre-filled from the last-used value in ~/.cache/vclip/vars.json.
+# pre-filled from the last-used value in ~/.cache/opindex/vars.json.
 variables:
   # LHOST: "10.10.14.5"
   # WORDLIST: "/usr/share/wordlists/rockyou.txt"

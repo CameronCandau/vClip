@@ -1,0 +1,16 @@
+Task summary:
+- Need a reusable Azure CLI reference after solving a storage access task.
+- Useful commands from the task:
+  - az login --use-device-code
+  - az account set --subscription "<subscription-name>"
+  - az storage account list --resource-group <resource-group> --output table
+  - az storage container list --account-name <storage-account> --auth-mode login --output table
+  - az storage blob download-batch --account-name <storage-account> --auth-mode login --source <container-name> --destination ./downloads
+
+Low-value context to discard:
+- Narrative discussion of why browser-based auth was inconvenient
+- Repeated explanation of Azure RBAC
+- Trial-and-error chat around one typo in a resource group name
+
+Important caveat to keep:
+- Container and blob commands assume login-based auth already works in the current shell

@@ -1,241 +1,233 @@
-# vclip - Command Snippet Manager
+# OpIndex
 
-A Python CLI tool that parses markdown files containing command snippets, provides a rofi-based fuzzy search interface, and copies selected commands to clipboard.
+`OpIndex` is a Linux-first command memory tool for markdown notes. It parses reusable command blocks from your notes, lets you search them from a launcher, and copies the selected command to the clipboard.
 
-By default, `vclip` copies commands exactly as written. Variable substitution is optional and can be toggled from inside the rofi menu.
+The current UI is optimized for `rofi` on X11, but the note format and CLI are useful independently of the launcher.
 
-## Features
+## What it does
 
-- 📝 **Markdown Parser**: Extract code blocks from markdown files
-- 🔍 **Rofi Integration**: Launch rofi with parsed commands for fuzzy search
-- 📋 **Clipboard Integration**: Copy selected commands using xclip/xsel/wl-copy
-- 🚀 **Caching System**: Parse files once, cache results for fast subsequent loads
-- ⚙️ **Configuration**: YAML config for paths, settings, and customization
-- 🔧 **Multiple Commands**: Support for multiple code blocks under one heading
+- searches reusable commands from markdown files
+- organizes sources into named workspaces
+- supports quick workspace switching from a launcher
+- shows source-document context while browsing
+- lints notes against the OpIndex authoring standard
+- copies selected commands to the clipboard
+
+## Platform
+
+`OpIndex` currently targets Linux. It expects one of:
+
+- `rofi` for the interactive launcher flow
+- `xclip`, `xsel`, or `wl-copy` for clipboard access
 
 ## Installation
 
-### System Dependencies
+### System dependencies
+
+Debian or Ubuntu:
 
 ```bash
-# Install system dependencies (Ubuntu/Debian)
 sudo apt install rofi xclip
+```
 
-# For Wayland users
+Wayland clipboard support:
+
+```bash
 sudo apt install wl-clipboard
 ```
 
-### Install vclip
+### Python package
 
-**Option 1: pipx (Recommended)**
+The intended PyPI distribution name is `opindex`.
+
 ```bash
-# Install pipx if you don't have it
-sudo apt update
-sudo apt install pipx
-pipx ensurepath
+pipx install opindex
+```
 
-# Install vclip in isolated environment
+This installs the `opindex` command.
+
+For local development:
+
+```bash
 pipx install .
 ```
 
-**Option 2: Development Installation**
-```bash
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
+## Quick start
 
-# Install in development mode
-pip install -e .
-```
-
-### Uninstall
+Create a config:
 
 ```bash
-# If installed with pipx
-pipx uninstall vclip
-
-# If installed with pip
-pip uninstall vclip
+opindex --create-config
 ```
 
-## Quick Start
+Run the selector in the default workspace:
 
-1. **Create configuration**:
-   ```bash
-   vclip --create-config
-   ```
-
-2. **Add your command files** to one of these locations:
-   - `~/Documents/commands/`
-   - `~/.local/share/vclip/`
-
-3. **Run vclip**:
-   ```bash
-   vclip
-   ```
-
-## Markdown Format
-
-Commands should be written in this format:
-
-```markdown
-# Category Name
-
-## Command Description
 ```bash
-command goes here
+opindex
 ```
 
-## Another Command
-```
-command without language specified (defaults to bash)
-```
-```
+Open the workspace picker first:
 
-### Example
-
-```markdown
-# System Administration
-
-## Check disk usage
 ```bash
-df -h
+opindex --workspace-menu
 ```
 
-## View large files
+Search a specific workspace:
+
 ```bash
-find /home -type f -size +100M -exec ls -lh {} \; | awk '{ print $9 ": " $5 }'
+opindex --workspace oscp
 ```
 
-# Docker Commands
+Search all workspaces:
 
-## View container logs
 ```bash
-docker logs -f container_name
+opindex --all
 ```
-```
 
-### Multiple Commands Per Heading
+Browse by workspace, then document:
 
-You can have multiple code blocks under one heading. They will be distinguished by their language label:
-
-```markdown
-## Enumerate SMB shares
 ```bash
-netexec smb $IP --shares
+opindex --browse
 ```
-
-```python
-# Python alternative
-from impacket import smbclient
-```
-```
-
-In rofi, these appear as:
-- `Enumerate SMB shares [bash]`
-- `Enumerate SMB shares [python]`
-
-If no language is specified, numbered labels are used:
-- `Command Name [1]`
-- `Command Name [2]`
 
 ## Configuration
 
-Configuration file is located at `~/.config/vclip/config.yaml`:
+The config file lives at:
+
+```text
+~/.config/opindex/config.yaml
+```
+
+Example:
 
 ```yaml
-# Source configuration
-sources:
-  files: []
-  directories:
-    - "~/Documents/commands"
-    - "~/.local/share/vclip"
-  recursive: true
-  file_patterns:
-    - "*.md"
-    - "*.markdown"
+default_workspace: oscp
 
-# Rofi interface configuration
+workspaces:
+  oscp:
+    directories:
+      - "~/notes/OSCP-Methodology"
+    files: []
+    recursive: true
+    file_patterns:
+      - "*.md"
+      - "*.markdown"
+
+  cheatsheets:
+    directories:
+      - "~/notes/cheatsheets"
+    files: []
+    recursive: true
+    file_patterns:
+      - "*.md"
+      - "*.markdown"
+
 rofi:
   args: []
   use_markup: true
   max_lines: 15
   prompt: "Commands"
+  window_width: 60
+  element_height: 2
 
-# Cache configuration
 cache:
   enabled: true
-  directory: null  # Uses ~/.cache/vclip
+  directory: null
   auto_cleanup: true
 
-# Copy commands exactly as written by default
 substitute_variables: false
-
-# Optional variables for substitution when the mode is enabled
-variables:
-  # HOST: "10.10.10.10"
+variables: {}
 ```
 
-## Usage
+## Markdown format
+
+Minimal parseable format:
+
+````markdown
+# Azure CLI
+
+## Login with device code
+```bash
+az login --use-device-code
+```
+````
+
+`OpIndex` parses:
+
+- `#` as the category
+- `##` as the searchable task heading
+- fenced code blocks as command content
+
+Supported command block languages:
+
+- empty language
+- `bash`
+- `sh`
+- `shell`
+- `powershell`
+- `ps1`
+- `cmd`
+- `bat`
+- `batch`
+
+For the stricter durable-note format, see:
+
+- [docs/opindex-note-standard.md](docs/opindex-note-standard.md)
+- [docs/opindex-agent-skill-spec.md](docs/opindex-agent-skill-spec.md)
+
+## Linting
+
+Lint a specific note:
 
 ```bash
-# Show command selector
-vclip
-
-# Show help
-vclip --help
-
-# List all commands
-vclip --list-commands
-
-# List source files
-vclip --list-files
-
-# Clear cache
-vclip --clear-cache
-
-# Show config path
-vclip --config-path
+opindex --lint-files path/to/file.md
 ```
 
-After selecting a command, it will be copied to your clipboard. Use `Ctrl+Shift+V` (or `Ctrl+V`) to paste it into your terminal.
-
-The rofi list includes a `[Settings] Variable substitution: OFF/ON` entry. Select it to toggle substitution mode and persist that choice in your config.
-
-## Testing
-
-Run the verification script to check your installation:
+Lint the selected workspace sources:
 
 ```bash
-python3 verify_installation.py
+opindex --lint-files
 ```
 
-Run the test suite:
+## CLI
+
+Common commands:
+
+```bash
+opindex --help
+opindex --list-workspaces
+opindex --list-files
+opindex --list-commands
+opindex --clear-cache
+opindex --config-path
+```
+
+## Development
+
+Run tests:
 
 ```bash
 python3 -m pytest tests/
 ```
 
-## Project Structure
+Run the parser against a file:
 
+```bash
+python3 -m cmd_manager.parser test_data/sample.md
 ```
-vclip/
-├── cmd_manager/          # Main package
-│   ├── parser.py        # Markdown parsing logic
-│   ├── rofi.py         # Rofi interface
-│   ├── clipboard.py    # Clipboard operations
-│   ├── cache.py        # Cache management
-│   └── config.py       # Configuration handling
-├── config/
-│   └── config.yaml     # Default configuration
-├── test_data/
-│   └── sample.md       # Test markdown file
-├── tests/              # Test files
-├── vclip               # Main executable script
-├── requirements.txt
-└── setup.py
+
+Lint a note during development:
+
+```bash
+python3 opindex --lint-files test_data/sample.md
 ```
+
+## Publishing
+
+The package is prepared for Trusted Publishing from GitHub Actions. See:
+
+- [PUBLISHING.md](PUBLISHING.md)
 
 ## License
 
-MIT License
+MIT

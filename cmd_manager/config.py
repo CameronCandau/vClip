@@ -1,5 +1,5 @@
 """
-Configuration management for vclip.
+Configuration management for OpIndex.
 """
 
 import os
@@ -70,7 +70,7 @@ class CacheConfig:
 
 @dataclass
 class VclipConfig:
-    """Main configuration class for vclip."""
+    """Main configuration class for OpIndex."""
     sources: Optional[SourceConfig]
     rofi: RofiConfig
     cache: CacheConfig
@@ -105,11 +105,19 @@ class ConfigManager:
         # Try XDG_CONFIG_HOME first
         xdg_config = os.environ.get('XDG_CONFIG_HOME')
         if xdg_config:
-            config_dir = Path(xdg_config) / 'vclip'
+            config_root = Path(xdg_config)
         else:
-            config_dir = Path.home() / '.config' / 'vclip'
+            config_root = Path.home() / '.config'
 
-        return config_dir / 'config.yaml'
+        preferred_path = config_root / 'opindex' / 'config.yaml'
+        legacy_path = config_root / 'vclip' / 'config.yaml'
+
+        if preferred_path.exists():
+            return preferred_path
+        if legacy_path.exists():
+            return legacy_path
+
+        return preferred_path
 
     def _get_default_config(self) -> VclipConfig:
         """Get default configuration."""
@@ -118,7 +126,7 @@ class ConfigManager:
             files=[],
             directories=[
                 str(home_dir / 'Documents' / 'commands'),
-                str(home_dir / '.local' / 'share' / 'vclip'),
+                str(home_dir / '.local' / 'share' / 'opindex'),
             ],
             recursive=True,
             file_patterns=["*.md", "*.markdown"]

@@ -19,7 +19,7 @@ class CommandCache:
         Initialize cache manager.
 
         Args:
-            cache_dir: Directory for cache files. Defaults to ~/.cache/vclip
+            cache_dir: Directory for cache files. Defaults to ~/.cache/opindex
         """
         if cache_dir:
             self.cache_dir = Path(cache_dir)
@@ -27,9 +27,9 @@ class CommandCache:
             # Use XDG cache directory or fallback to ~/.cache
             xdg_cache = os.environ.get('XDG_CACHE_HOME')
             if xdg_cache:
-                self.cache_dir = Path(xdg_cache) / 'vclip'
+                self.cache_dir = Path(xdg_cache) / 'opindex'
             else:
-                self.cache_dir = Path.home() / '.cache' / 'vclip'
+                self.cache_dir = Path.home() / '.cache' / 'opindex'
 
         # Create cache directory if it doesn't exist
         self.cache_dir.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CLI entry point for vclip - Command Snippet Manager
+CLI entry point for OpIndex.
 """
 
 import sys
@@ -12,26 +12,26 @@ from .config import ConfigManager
 from .cache import CachedMarkdownParser
 from .rofi import RofiInterface
 from .clipboard import ClipboardManager
-from .parser import Command
+from .lint import MarkdownLinter
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
     """Create and configure argument parser."""
     parser = argparse.ArgumentParser(
-        description="Command Snippet Manager with rofi integration",
+        description="Operational command memory for markdown notes",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  vclip                    # Show command selector
-  vclip --workspace-menu   # Choose a workspace, then search
-  vclip --workspace oscp   # Search a named workspace
-  vclip --all              # Search across all workspaces
-  vclip --browse           # Browse by workspace, then document
-  vclip --config-path      # Show config file path
-  vclip --create-config    # Create default config file
-  vclip --clear-cache      # Clear command cache
-  vclip --list-files       # List source files
-  vclip --list-commands    # List all commands
+  opindex                    # Show command selector
+  opindex --workspace-menu   # Choose a workspace, then search
+  opindex --workspace oscp   # Search a named workspace
+  opindex --all              # Search across all workspaces
+  opindex --browse           # Browse by workspace, then document
+  opindex --config-path      # Show config file path
+  opindex --create-config    # Create default config file
+  opindex --clear-cache      # Clear command cache
+  opindex --list-files       # List source files
+  opindex --list-commands    # List all commands
         """
     )
 
@@ -106,9 +106,16 @@ Examples:
     )
 
     parser.add_argument(
+        "--lint-files",
+        nargs="*",
+        metavar="PATH",
+        help="Lint specific markdown files. If no paths are given, lint the selected workspace sources."
+    )
+
+    parser.add_argument(
         "--version", "-v",
         action="version",
-        version="vclip 0.1.0"
+        version="opindex 0.1.0"
     )
 
     return parser
@@ -131,6 +138,54 @@ def annotate_command_workspaces(commands, workspace_file_map):
     for cmd in commands:
         cmd.workspace = workspace_file_map.get(cmd.source_file, cmd.workspace)
     return commands
+
+
+def lint_files(
+    config_manager: ConfigManager,
+    file_paths: List[str],
+    workspace: Optional[str] = None,
+    all_workspaces: bool = False
+) -> int:
+    """Lint markdown files against the OpIndex authoring standard."""
+    try:
+        if not file_paths:
+            file_paths = config_manager.get_source_files(workspace=workspace, all_workspaces=all_workspaces)
+
+        if not file_paths:
+            print("No markdown files found to lint.")
+            return 1
+
+        linter = MarkdownLinter()
+        results = [linter.lint_file(file_path) for file_path in file_paths]
+
+        total_errors = 0
+        total_warnings = 0
+        problematic_files = 0
+
+        for result in results:
+            if not result.issues:
+                continue
+
+            problematic_files += 1
+            print(result.file_path)
+            for issue in result.issues:
+                print(f"  {issue.severity.upper()}:{issue.line_number} [{issue.code}] {issue.message}")
+            print()
+
+            total_errors += result.error_count
+            total_warnings += result.warning_count
+
+        print(
+            f"Linted {len(results)} file(s): "
+            f"{problematic_files} with issues, "
+            f"{total_errors} error(s), {total_warnings} warning(s)."
+        )
+
+        return 1 if total_errors else 0
+
+    except Exception as e:
+        print(f"Error linting files: {e}")
+        return 1
 
 
 def list_commands(
@@ -332,6 +387,14 @@ def main():
             suffix = " (default)" if workspace_name == config_manager.get_default_workspace() else ""
             print(f"  {workspace_name}{suffix}")
         return 0
+
+    if args.lint_files is not None:
+        return lint_files(
+            config_manager,
+            args.lint_files,
+            workspace=args.workspace,
+            all_workspaces=args.all
+        )
 
     if args.clear_cache:
         config = config_manager.load_config()

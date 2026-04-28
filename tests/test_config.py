@@ -21,11 +21,14 @@ class TestConfigManager:
             config = manager.load_config()
 
             assert isinstance(config, VclipConfig)
-            assert isinstance(config.sources, SourceConfig)
+            assert config.sources is None
+            assert "default" in config.workspaces
+            assert isinstance(config.workspaces["default"], SourceConfig)
             assert isinstance(config.rofi, RofiConfig)
             assert isinstance(config.cache, CacheConfig)
             assert config.substitute_variables is False
             assert isinstance(config.variables, dict)
+            assert config.default_workspace == "default"
 
     def test_load_config_from_file(self):
         """Test loading configuration from file."""
@@ -245,7 +248,8 @@ class TestConfigManager:
             with open(config_path, 'r') as f:
                 data = yaml.safe_load(f)
 
-            assert 'sources' in data
+            assert 'default_workspace' in data
+            assert 'workspaces' in data
             assert 'rofi' in data
             assert 'cache' in data
             assert 'variables' in data

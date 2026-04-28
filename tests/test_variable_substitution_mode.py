@@ -57,16 +57,17 @@ def test_copy_and_paste_uses_rendered_text(monkeypatch):
     assert pasted["text"] == "ping 10.10.10.10"
 
 
-def test_main_selection_flow_toggle_entry_persists_and_enables_substitution(monkeypatch):
+def test_main_selection_flow_copies_selected_command(monkeypatch):
     config = VclipConfig(
-        sources=SourceConfig(files=[], directories=[]),
+        sources=None,
         rofi=RofiConfig(args=[], use_markup=False),
         cache=CacheConfig(enabled=True, directory=None, auto_cleanup=True),
+        workspaces={"default": SourceConfig(files=[], directories=[])},
+        default_workspace="default",
         substitute_variables=False,
         variables={},
     )
-    selected_modes = []
-    saved_configs = []
+    copied_descriptions = []
     command = make_command()
 
     class FakeConfigManager:
@@ -78,13 +79,11 @@ def test_main_selection_flow_toggle_entry_persists_and_enables_substitution(monk
         def load_config(self):
             return self.config
 
-        def get_source_files(self):
+        def get_source_files(self, workspace=None, all_workspaces=False):
             return ["test.md"]
 
-        def save_config(self, cfg):
-            saved_configs.append(cfg.substitute_variables)
-            self.config = cfg
-            return True
+        def get_workspace_file_map(self, workspace=None):
+            return {"test.md": "default"}
 
     class FakeParser:
         def __init__(self, _directory):
@@ -95,29 +94,25 @@ def test_main_selection_flow_toggle_entry_persists_and_enables_substitution(monk
 
     class FakeRofi:
         def __init__(self, _args):
-            self.calls = 0
+            pass
 
         def select_command(self, menu_commands):
-            self.calls += 1
-            if self.calls == 1:
-                return menu_commands[0]
-            return menu_commands[1]
+            return menu_commands[0]
 
     class FakeClipboard:
-        def __init__(self, _variables):
+        def __init__(self):
             pass
 
         def check_clipboard_availability(self):
             return True
 
         def copy_command(self, selected_command, rofi=None, no_prompt=False, substitute_variables=False):
-            selected_modes.append(substitute_variables)
+            copied_descriptions.append(selected_command.description)
             return selected_command is command
 
     monkeypatch.setattr("cmd_manager.cli.CachedMarkdownParser", FakeParser)
     monkeypatch.setattr("cmd_manager.cli.RofiInterface", FakeRofi)
     monkeypatch.setattr("cmd_manager.cli.ClipboardManager", FakeClipboard)
 
-    assert main_selection_flow(FakeConfigManager(), use_cache=True, no_prompt=False, auto_paste=False) == 0
-    assert saved_configs == [True]
-    assert selected_modes == [True]
+    assert main_selection_flow(FakeConfigManager(), use_cache=True) == 0
+    assert copied_descriptions == ["Ping host"]

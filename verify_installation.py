@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Verification script for vclip installation.
+Verification script for OpIndex installation.
 """
 
 import sys
@@ -108,7 +108,7 @@ def test_cli():
 
     try:
         # Test help command
-        result = subprocess.run(['./vclip', '--help'], capture_output=True, text=True)
+        result = subprocess.run(['./opindex', '--help'], capture_output=True, text=True)
         if result.returncode == 0:
             print("  ✅ CLI help works")
         else:
@@ -116,7 +116,7 @@ def test_cli():
             return False
 
         # Test version command
-        result = subprocess.run(['./vclip', '--version'], capture_output=True, text=True)
+        result = subprocess.run(['./opindex', '--version'], capture_output=True, text=True)
         if result.returncode == 0:
             print("  ✅ CLI version works")
         else:
@@ -131,7 +131,7 @@ def test_cli():
 
 def main():
     """Run all verification tests."""
-    print("🚀 vclip Installation Verification")
+    print("🚀 OpIndex Installation Verification")
     print("=" * 40)
 
     tests = [
@@ -149,14 +149,14 @@ def main():
     print(f"\n📊 Results: {passed}/{len(tests)} tests passed")
 
     if passed == len(tests):
-        print("\n🎉 All tests passed! vclip is ready to use.")
+        print("\n🎉 All tests passed! OpIndex is ready to use.")
         print("\nNext steps:")
         print("1. Install dependencies if needed: pip install -r requirements.txt")
         print("2. Install rofi if needed: sudo apt install rofi")
         print("3. Install clipboard tool: sudo apt install xclip")
-        print("4. Run: ./vclip --create-config")
-        print("5. Add your markdown files to ~/.local/share/vclip/")
-        print("6. Run: ./vclip")
+        print("4. Run: ./opindex --create-config")
+        print("5. Add your markdown files to ~/.local/share/opindex/")
+        print("6. Run: ./opindex")
     else:
         print("\n⚠️  Some tests failed. Check the errors above.")
         return 1
