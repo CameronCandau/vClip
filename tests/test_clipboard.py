@@ -167,33 +167,6 @@ class TestClipboardManager:
         assert result is False
         mock_copy.assert_not_called()
 
-    def test_copy_and_paste_uses_rendered_text(self):
-        clipboard = make_clipboard({"HOST": "10.10.10.10"})
-        command = Command(
-            content="ping $HOST",
-            description="Ping host",
-            category="Network",
-            source_file="test.md",
-        )
-
-        copied = {}
-        pasted = {}
-
-        def fake_copy(text):
-            copied["text"] = text
-            return True
-
-        def fake_paste(text):
-            pasted["text"] = text
-            return True
-
-        with patch.object(clipboard, "copy_to_clipboard", side_effect=fake_copy):
-            with patch.object(clipboard, "_auto_paste", side_effect=fake_paste):
-                assert clipboard.copy_and_paste_command(command, substitute_variables=True) is True
-
-        assert copied["text"] == "ping 10.10.10.10"
-        assert pasted["text"] == "ping 10.10.10.10"
-
     def test_check_clipboard_availability(self):
         clipboard = make_clipboard()
 

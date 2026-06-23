@@ -16,12 +16,6 @@ workspaces:
 
 # Rofi interface configuration
 rofi:
-  # Additional arguments to pass to rofi
-  args: []
-
-  # Use pango markup for formatting
-  use_markup: true
-
   # Maximum number of lines to show
   max_lines: 15
 
@@ -42,11 +36,8 @@ cache:
   # Cache directory (null means use default: ~/.cache/opindex)
   directory: null
 
-  # Automatically clean up invalid cache files
-  auto_cleanup: true
-
 # Copy commands exactly as written by default.
-# Toggle this inside the rofi menu via the "[Settings] Variable substitution" entry.
+# Set this to true if you want uppercase variables like $HOST substituted before copy.
 substitute_variables: false
 
 # Variable definitions for command substitution

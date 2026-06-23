@@ -78,12 +78,6 @@ Examples:
     )
 
     parser.add_argument(
-        "--no-cache",
-        action="store_true",
-        help="Disable caching for this run"
-    )
-
-    parser.add_argument(
         "--workspace-menu",
         action="store_true",
         help="Choose a workspace interactively before searching"
@@ -122,10 +116,10 @@ Examples:
     return parser
 
 
-def load_commands(config_manager: ConfigManager, use_cache: bool, source_files: List[str]):
+def load_commands(config_manager: ConfigManager, source_files: List[str]):
     """Load commands from the configured sources."""
     config = config_manager.load_config()
-    if config.cache.enabled and use_cache:
+    if config.cache.enabled:
         parser = CachedMarkdownParser(config.cache.directory)
         return parser.parse_files_cached(source_files)
 
@@ -192,8 +186,7 @@ def lint_files(
 def list_commands(
     config_manager: ConfigManager,
     workspace: Optional[str] = None,
-    all_workspaces: bool = False,
-    use_cache: bool = True
+    all_workspaces: bool = False
 ) -> int:
     """List all available commands."""
     try:
@@ -204,7 +197,7 @@ def list_commands(
 
         workspace_file_map = config_manager.get_workspace_file_map(workspace=None if all_workspaces else workspace)
         commands = annotate_command_workspaces(
-            load_commands(config_manager, use_cache, source_files),
+            load_commands(config_manager, source_files),
             workspace_file_map
         )
 
@@ -254,7 +247,6 @@ def filter_commands_by_document(commands, document_path: str):
 
 def main_selection_flow(
     config_manager: ConfigManager,
-    use_cache: bool = True,
     workspace: Optional[str] = None,
     all_workspaces: bool = False,
     browse: bool = False,
@@ -286,7 +278,7 @@ def main_selection_flow(
 
         workspace_file_map = config_manager.get_workspace_file_map(workspace=None if all_workspaces else workspace)
         commands = annotate_command_workspaces(
-            load_commands(config_manager, use_cache, source_files),
+            load_commands(config_manager, source_files),
             workspace_file_map
         )
 
@@ -313,22 +305,22 @@ def main_selection_flow(
                 return 0
             commands = filter_commands_by_document(commands, selected_document)
 
-        if config.rofi.use_markup:
-            selected_command = rofi.select_command_with_preview(commands)
-        else:
-            selected_command = rofi.select_command(commands)
-
+        selected_command = rofi.select_command(commands)
         if not selected_command:
             return 0
 
-        clipboard = ClipboardManager()
+        clipboard = ClipboardManager(config.variables)
 
         if not clipboard.check_clipboard_availability():
             print("No clipboard tools available!")
             print("Install one of: xclip, xsel, wl-copy")
             return 1
 
-        success = clipboard.copy_command(selected_command)
+        success = clipboard.copy_command(
+            selected_command,
+            rofi=rofi,
+            substitute_variables=config.substitute_variables
+        )
 
         if success:
             print(f"Copied: {selected_command.description}")
@@ -409,14 +401,12 @@ def main():
         return list_commands(
             config_manager,
             workspace=args.workspace,
-            all_workspaces=args.all,
-            use_cache=not args.no_cache
+            all_workspaces=args.all
         )
 
     # Main selection flow
     return main_selection_flow(
         config_manager,
-        not args.no_cache,
         workspace=args.workspace,
         all_workspaces=args.all,
         browse=args.browse,

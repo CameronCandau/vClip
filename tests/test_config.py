@@ -6,7 +6,7 @@ import pytest
 import tempfile
 import yaml
 from pathlib import Path
-from cmd_manager.config import ConfigManager, VclipConfig, SourceConfig, RofiConfig, CacheConfig
+from cmd_manager.config import ConfigManager, OpIndexConfig, SourceConfig, RofiConfig, CacheConfig
 
 
 class TestConfigManager:
@@ -20,8 +20,7 @@ class TestConfigManager:
 
             config = manager.load_config()
 
-            assert isinstance(config, VclipConfig)
-            assert config.sources is None
+            assert isinstance(config, OpIndexConfig)
             assert "default" in config.workspaces
             assert isinstance(config.workspaces["default"], SourceConfig)
             assert isinstance(config.rofi, RofiConfig)
@@ -33,22 +32,21 @@ class TestConfigManager:
     def test_load_config_from_file(self):
         """Test loading configuration from file."""
         config_data = {
-            'sources': {
-                'files': ['/test/file.md'],
-                'directories': ['/test/dir'],
-                'recursive': False,
-                'file_patterns': ['*.md']
+            'workspaces': {
+                'default': {
+                    'files': ['/test/file.md'],
+                    'directories': ['/test/dir'],
+                    'recursive': False,
+                    'file_patterns': ['*.md']
+                }
             },
             'rofi': {
-                'args': ['-theme', 'dark'],
-                'use_markup': False,
                 'max_lines': 20,
                 'prompt': 'Test Commands'
             },
             'cache': {
                 'enabled': False,
-                'directory': '/custom/cache',
-                'auto_cleanup': False
+                'directory': '/custom/cache'
             },
             'variables': {
                 'TEST_VAR': 'test_value'
@@ -63,22 +61,19 @@ class TestConfigManager:
             manager = ConfigManager(config_path)
             config = manager.load_config()
 
-            # Check sources
-            assert config.sources.files == ['/test/file.md']
-            assert config.sources.directories == ['/test/dir']
-            assert config.sources.recursive is False
-            assert config.sources.file_patterns == ['*.md']
+            workspace = config.workspaces["default"]
+            assert workspace.files == ['/test/file.md']
+            assert workspace.directories == ['/test/dir']
+            assert workspace.recursive is False
+            assert workspace.file_patterns == ['*.md']
 
             # Check rofi
-            assert config.rofi.args == ['-theme', 'dark']
-            assert config.rofi.use_markup is False
             assert config.rofi.max_lines == 20
             assert config.rofi.prompt == 'Test Commands'
 
             # Check cache
             assert config.cache.enabled is False
             assert config.cache.directory == '/custom/cache'
-            assert config.cache.auto_cleanup is False
 
             # Check substitution mode
             assert config.substitute_variables is False
@@ -96,24 +91,26 @@ class TestConfigManager:
             manager = ConfigManager(str(config_path))
 
             # Create custom config
-            config = VclipConfig(
-                sources=SourceConfig(
-                    files=['/test.md'],
-                    directories=['/test'],
-                    recursive=True,
-                    file_patterns=['*.md']
-                ),
+            config = OpIndexConfig(
                 rofi=RofiConfig(
-                    args=[],
-                    use_markup=True,
+                    prompt="Commands",
                     max_lines=15,
-                    prompt="Commands"
+                    window_width=60,
+                    element_height=2
                 ),
                 cache=CacheConfig(
                     enabled=True,
-                    directory=None,
-                    auto_cleanup=True
+                    directory=None
                 ),
+                workspaces={
+                    "default": SourceConfig(
+                        files=['/test.md'],
+                        directories=['/test'],
+                        recursive=True,
+                        file_patterns=['*.md']
+                    )
+                },
+                default_workspace="default",
                 substitute_variables=True,
                 variables={'VAR': 'value'}
             )
@@ -127,7 +124,7 @@ class TestConfigManager:
             with open(config_path, 'r') as f:
                 saved_data = yaml.safe_load(f)
 
-            assert saved_data['sources']['files'] == ['/test.md']
+            assert saved_data['workspaces']['default']['files'] == ['/test.md']
             assert saved_data['rofi']['prompt'] == 'Commands'
             assert saved_data['substitute_variables'] is True
             assert saved_data['variables'] == {'VAR': 'value'}
@@ -135,11 +132,13 @@ class TestConfigManager:
     def test_get_source_files_explicit_files(self):
         """Test getting source files from explicit file list."""
         config_data = {
-            'sources': {
-                'files': [],  # Will be set to existing files
-                'directories': [],
-                'recursive': True,
-                'file_patterns': ['*.md']
+            'workspaces': {
+                'default': {
+                    'files': [],  # Will be set to existing files
+                    'directories': [],
+                    'recursive': True,
+                    'file_patterns': ['*.md']
+                }
             }
         }
 
@@ -151,7 +150,7 @@ class TestConfigManager:
             test_file2.write_text("# Test")
 
             # Update config with actual file paths
-            config_data['sources']['files'] = [str(test_file1), str(test_file2)]
+            config_data['workspaces']['default']['files'] = [str(test_file1), str(test_file2)]
 
             config_path = Path(temp_dir) / "config.yaml"
             with open(config_path, 'w') as f:
@@ -180,11 +179,13 @@ class TestConfigManager:
             (sub_dir / "file4.md").write_text("# Test")
 
             config_data = {
-                'sources': {
-                    'files': [],
-                    'directories': [str(temp_path)],
-                    'recursive': True,
-                    'file_patterns': ['*.md', '*.markdown']
+                'workspaces': {
+                    'default': {
+                        'files': [],
+                        'directories': [str(temp_path)],
+                        'recursive': True,
+                        'file_patterns': ['*.md', '*.markdown']
+                    }
                 }
             }
 
@@ -215,11 +216,13 @@ class TestConfigManager:
             (sub_dir / "file2.md").write_text("# Test")
 
             config_data = {
-                'sources': {
-                    'files': [],
-                    'directories': [str(temp_path)],
-                    'recursive': False,  # Non-recursive
-                    'file_patterns': ['*.md']
+                'workspaces': {
+                    'default': {
+                        'files': [],
+                        'directories': [str(temp_path)],
+                        'recursive': False,  # Non-recursive
+                        'file_patterns': ['*.md']
+                    }
                 }
             }
 
@@ -272,13 +275,13 @@ class TestConfigManager:
 class TestRofiConfig:
     """Test the RofiConfig class."""
 
-    def test_get_rofi_args_with_markup(self):
-        """Test rofi args generation with markup enabled."""
+    def test_get_rofi_args(self):
+        """Test rofi args generation."""
         rofi_config = RofiConfig(
-            args=['-theme', 'dark'],
-            use_markup=True,
             max_lines=20,
-            prompt="Test"
+            prompt="Test",
+            window_width=70,
+            element_height=3
         )
 
         args = rofi_config.get_rofi_args()
@@ -290,21 +293,8 @@ class TestRofiConfig:
         assert '-no-custom' in args
         assert '-lines' in args and '20' in args
         assert '-markup-rows' in args
-        assert '-theme' in args and 'dark' in args
-
-    def test_get_rofi_args_without_markup(self):
-        """Test rofi args generation with markup disabled."""
-        rofi_config = RofiConfig(
-            args=[],
-            use_markup=False,
-            max_lines=10,
-            prompt="Commands"
-        )
-
-        args = rofi_config.get_rofi_args()
-
-        assert '-markup-rows' not in args
-        assert '-lines' in args and '10' in args
+        assert '-width' in args and '70' in args
+        assert '-eh' in args and '3' in args
 
 
 class TestSourceConfig:

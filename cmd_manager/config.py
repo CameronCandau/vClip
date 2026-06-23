@@ -12,10 +12,8 @@ from dataclasses import dataclass, asdict, field
 @dataclass
 class RofiConfig:
     """Configuration for rofi interface."""
-    args: List[str]
-    use_markup: bool = True
-    max_lines: int = 15
     prompt: str = "Commands"
+    max_lines: int = 15
     window_width: int = 60  # Window width as percentage (0-100)
     element_height: int = 2  # Lines per entry
 
@@ -28,10 +26,8 @@ class RofiConfig:
             "-format", "i",  # return index
             "-no-custom",  # don't allow custom input
             "-lines", str(self.max_lines),
+            "-markup-rows",
         ]
-
-        if self.use_markup:
-            base_args.append("-markup-rows")
 
         # Add window size configuration
         if self.window_width:
@@ -43,8 +39,7 @@ class RofiConfig:
         # Add scrollbar for better navigation
         base_args.extend(["-theme-str", "listview { scrollbar: true; }"])
 
-        # Add custom args
-        return base_args + self.args
+        return base_args
 
 
 @dataclass
@@ -65,13 +60,11 @@ class CacheConfig:
     """Configuration for caching system."""
     enabled: bool = True
     directory: Optional[str] = None
-    auto_cleanup: bool = True
 
 
 @dataclass
-class VclipConfig:
+class OpIndexConfig:
     """Main configuration class for OpIndex."""
-    sources: Optional[SourceConfig]
     rofi: RofiConfig
     cache: CacheConfig
     workspaces: Dict[str, SourceConfig] = field(default_factory=dict)
@@ -95,7 +88,7 @@ class ConfigManager:
             config_path: Path to config file. If None, uses default locations.
         """
         self.config_path = self._resolve_config_path(config_path)
-        self.config: Optional[VclipConfig] = None
+        self.config: Optional[OpIndexConfig] = None
 
     def _resolve_config_path(self, config_path: Optional[str]) -> Path:
         """Resolve configuration file path using XDG standards."""
@@ -110,16 +103,9 @@ class ConfigManager:
             config_root = Path.home() / '.config'
 
         preferred_path = config_root / 'opindex' / 'config.yaml'
-        legacy_path = config_root / 'vclip' / 'config.yaml'
-
-        if preferred_path.exists():
-            return preferred_path
-        if legacy_path.exists():
-            return legacy_path
-
         return preferred_path
 
-    def _get_default_config(self) -> VclipConfig:
+    def _get_default_config(self) -> OpIndexConfig:
         """Get default configuration."""
         home_dir = Path.home()
         default_sources = SourceConfig(
@@ -132,28 +118,24 @@ class ConfigManager:
             file_patterns=["*.md", "*.markdown"]
         )
 
-        return VclipConfig(
-            sources=None,
+        return OpIndexConfig(
             workspaces={'default': default_sources},
             default_workspace='default',
             rofi=RofiConfig(
-                args=[],
-                use_markup=True,
-                max_lines=15,
                 prompt="Commands",
+                max_lines=15,
                 window_width=60,
                 element_height=2
             ),
             cache=CacheConfig(
                 enabled=True,
                 directory=None,  # Will use default cache directory
-                auto_cleanup=True
             ),
             substitute_variables=False,
             variables={}
         )
 
-    def load_config(self) -> VclipConfig:
+    def load_config(self) -> OpIndexConfig:
         """Load configuration from file or create default."""
         if self.config_path.exists():
             try:
@@ -173,7 +155,7 @@ class ConfigManager:
         self.config = self._get_default_config()
         return self.config
 
-    def save_config(self, config: Optional[VclipConfig] = None) -> bool:
+    def save_config(self, config: Optional[OpIndexConfig] = None) -> bool:
         """Save configuration to file."""
         if config is None:
             config = self.config
@@ -197,13 +179,8 @@ class ConfigManager:
             print(f"Error saving config to {self.config_path}: {e}")
             return False
 
-    def _dict_to_config(self, data: Dict[str, Any]) -> VclipConfig:
-        """Convert dictionary to VclipConfig object."""
-        sources = None
-        sources_data = data.get('sources')
-        if isinstance(sources_data, dict):
-            sources = self._parse_source_config(sources_data)
-
+    def _dict_to_config(self, data: Dict[str, Any]) -> OpIndexConfig:
+        """Convert dictionary to OpIndexConfig object."""
         workspaces_data = data.get('workspaces', {})
         workspaces = {
             name: self._parse_source_config(workspace_data)
@@ -211,15 +188,10 @@ class ConfigManager:
             if isinstance(workspace_data, dict)
         }
 
-        if not workspaces and sources is not None:
-            workspaces = {'default': sources}
-
         rofi_data = data.get('rofi', {})
         rofi = RofiConfig(
-            args=rofi_data.get('args', []),
-            use_markup=rofi_data.get('use_markup', True),
-            max_lines=rofi_data.get('max_lines', 15),
             prompt=rofi_data.get('prompt', "Commands"),
+            max_lines=rofi_data.get('max_lines', 15),
             window_width=rofi_data.get('window_width', 60),
             element_height=rofi_data.get('element_height', 2)
         )
@@ -227,12 +199,10 @@ class ConfigManager:
         cache_data = data.get('cache', {})
         cache = CacheConfig(
             enabled=cache_data.get('enabled', True),
-            directory=cache_data.get('directory'),
-            auto_cleanup=cache_data.get('auto_cleanup', True)
+            directory=cache_data.get('directory')
         )
 
-        return VclipConfig(
-            sources=sources,
+        return OpIndexConfig(
             workspaces=workspaces,
             default_workspace=data.get('default_workspace') or self._get_initial_default_workspace(workspaces),
             rofi=rofi,
@@ -258,8 +228,8 @@ class ConfigManager:
             return sorted(workspaces.keys())[0]
         return None
 
-    def _config_to_dict(self, config: VclipConfig) -> Dict[str, Any]:
-        """Convert VclipConfig object to dictionary."""
+    def _config_to_dict(self, config: OpIndexConfig) -> Dict[str, Any]:
+        """Convert OpIndexConfig object to dictionary."""
         config_dict = {
             'rofi': asdict(config.rofi),
             'cache': asdict(config.cache),
@@ -275,8 +245,6 @@ class ConfigManager:
                 name: asdict(source_config)
                 for name, source_config in config.workspaces.items()
             }
-        elif config.sources is not None:
-            config_dict['sources'] = asdict(config.sources)
 
         return config_dict
 
@@ -349,9 +317,6 @@ class ConfigManager:
         default_workspace = self.get_default_workspace()
         if default_workspace:
             return [self.config.workspaces[default_workspace]]
-
-        if self.config.sources is not None:
-            return [self.config.sources]
 
         return []
 

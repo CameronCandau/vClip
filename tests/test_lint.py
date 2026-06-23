@@ -1,5 +1,5 @@
 """
-Tests for the vclip markdown linter.
+Tests for the OpIndex markdown linter.
 """
 
 from cmd_manager.lint import MarkdownLinter
@@ -8,7 +8,7 @@ from cmd_manager.lint import MarkdownLinter
 class TestMarkdownLinter:
     """Test the markdown linter."""
 
-    def test_valid_vclip_note(self):
+    def test_valid_opindex_note(self):
         content = """
 # Azure CLI
 

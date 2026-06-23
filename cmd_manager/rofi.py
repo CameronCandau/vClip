@@ -8,6 +8,9 @@ from typing import List, Optional, Union
 from .parser import Command
 
 
+ENTRY_SEPARATOR = "\x1f"
+
+
 class RofiInterface:
     """Interface for rofi command selection."""
 
@@ -61,32 +64,6 @@ class RofiInterface:
 
     def select_command(self, commands: List[Command]) -> Optional[Command]:
         """
-        Display commands in rofi and return selected command.
-
-        Args:
-            commands: List of Command objects to display
-
-        Returns:
-            Selected Command object or None if cancelled
-        """
-        if not commands:
-            return None
-
-        # Prepare rofi input - each line is a command formatted for display
-        selected_index = self._run_rofi_index(
-            [self._format_command_plain(cmd) for cmd in commands],
-            self.rofi_args
-        )
-        if selected_index is None:
-            return None
-
-        if 0 <= selected_index < len(commands):
-            return commands[selected_index]
-
-        return None
-
-    def select_command_with_preview(self, commands: List[Command]) -> Optional[Command]:
-        """
         Display commands with preview using rofi's advanced features.
 
         Args:
@@ -98,31 +75,14 @@ class RofiInterface:
         if not commands:
             return None
 
-        # Use a unique separator between entries so each two-line command is treated as one entry
-        # We use a character sequence that's unlikely to appear in commands or markup
-        ENTRY_SEPARATOR = "\x1f"  # ASCII Unit Separator
-
-        # Enhanced rofi args with preview
-        enhanced_args = [
-            "-dmenu",
-            "-i",
-            "-p", "Commands",
-            "-format", "i",
-            "-no-custom",
-            "-markup-rows",  # Enable markup
-            "-columns", "1",
-            "-lines", str(min(15, len(commands))),  # Show up to 15 items
-            "-width", "60",  # Window width as percentage of screen
-            "-eh", "2",  # Element height (2 lines per entry for our two-line format)
-            "-sep", ENTRY_SEPARATOR,  # Use ASCII Unit Separator to separate entries
-            "-theme-str", "listview { scrollbar: true; }",  # Show scrollbar
-            "-theme-str", "window { width: 60%; }",  # Alternative width setting
-        ]
-
         # Format commands with markup for better display
         # Each command is 2 lines (description + content preview), separated by unit separators
         rofi_input = ENTRY_SEPARATOR.join(self._format_command_with_markup(cmd) for cmd in commands)
-        selected_index = self._run_rofi_index(rofi_input, enhanced_args, use_joined_input=True)
+        selected_index = self._run_rofi_index(
+            rofi_input,
+            self.rofi_args + ["-columns", "1", "-sep", ENTRY_SEPARATOR, "-theme-str", "window { width: 60%; }"],
+            use_joined_input=True
+        )
         if selected_index is None:
             return None
 
@@ -155,14 +115,6 @@ class RofiInterface:
         cmd_line = f"<small><span alpha='60%'>{cmd_content}</span>{context_suffix}</small>"
 
         return f"{title_line}\n{cmd_line}"
-
-    def _format_command_plain(self, command: Command) -> str:
-        """Format command for non-markup rofi mode."""
-        description = command.format_for_rofi()
-        source_context = self._build_source_context(command)
-        if source_context:
-            return f"{description} - {source_context}"
-        return description
 
     def _build_source_context(self, command: Command) -> str:
         """Build a short source label for display."""
@@ -241,67 +193,3 @@ class RofiInterface:
             return result.stdout.strip()
         except FileNotFoundError:
             raise RuntimeError("rofi not found. Please install rofi: sudo apt install rofi")
-
-    def filter_commands(self, commands: List[Command], query: str) -> List[Command]:
-        """
-        Filter commands based on a search query.
-
-        Args:
-            commands: List of commands to filter
-            query: Search query
-
-        Returns:
-            Filtered list of commands
-        """
-        if not query:
-            return commands
-
-        query = query.lower()
-        filtered = []
-
-        for cmd in commands:
-            # Search in description, category, and command content
-            searchable_text = " ".join([
-                cmd.description.lower(),
-                cmd.category.lower(),
-                cmd.content.lower()
-            ])
-
-            if query in searchable_text:
-                filtered.append(cmd)
-
-        return filtered
-
-
-def main():
-    """CLI interface for testing rofi integration."""
-    import sys
-    from .parser import MarkdownParser
-
-    if len(sys.argv) < 2:
-        print("Usage: python -m cmd_manager.rofi <markdown_file>")
-        sys.exit(1)
-
-    file_path = sys.argv[1]
-    parser = MarkdownParser()
-    rofi = RofiInterface()
-
-    try:
-        commands = parser.parse_file(file_path)
-        print(f"Loaded {len(commands)} commands from {file_path}")
-
-        selected = rofi.select_command_with_preview(commands)
-        if selected:
-            print(f"Selected command: {selected.description}")
-            print(f"Command: {selected.content}")
-            print(f"Language: {selected.language if selected.language else 'None'}")
-        else:
-            print("No command selected")
-
-    except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

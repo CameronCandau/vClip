@@ -2,10 +2,9 @@
 Markdown parser for extracting command snippets with metadata.
 """
 
-import re
 import hashlib
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from pathlib import Path
 
 
@@ -62,9 +61,6 @@ class Command:
 
 class MarkdownParser:
     """Parser for extracting commands from markdown files."""
-
-    def __init__(self):
-        self.commands: List[Command] = []
 
     def parse_file(self, file_path: str) -> List[Command]:
         """Parse a single markdown file and return commands."""

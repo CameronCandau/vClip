@@ -123,8 +123,6 @@ workspaces:
       - "*.markdown"
 
 rofi:
-  args: []
-  use_markup: true
   max_lines: 15
   prompt: "Commands"
   window_width: 60
@@ -133,7 +131,6 @@ rofi:
 cache:
   enabled: true
   directory: null
-  auto_cleanup: true
 
 substitute_variables: false
 variables: {}
@@ -204,10 +201,16 @@ opindex --config-path
 
 ## Development
 
+Enter the dev shell:
+
+```bash
+direnv allow
+```
+
 Run tests:
 
 ```bash
-python3 -m pytest tests/
+pytest -q
 ```
 
 Run the parser against a file:
