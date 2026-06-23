@@ -38,15 +38,13 @@ sudo apt install wl-clipboard
 
 ### Python package
 
-The intended PyPI distribution name is `opindex`.
-
 ```bash
 pipx install opindex
 ```
 
 This installs the `opindex` command.
 
-For local development:
+For local development from this repository:
 
 ```bash
 pipx install .
@@ -75,7 +73,7 @@ opindex --workspace-menu
 Search a specific workspace:
 
 ```bash
-opindex --workspace oscp
+opindex --workspace notes
 ```
 
 Search all workspaces:
@@ -101,12 +99,12 @@ The config file lives at:
 Example:
 
 ```yaml
-default_workspace: oscp
+default_workspace: notes
 
 workspaces:
-  oscp:
+  notes:
     directories:
-      - "~/notes/OSCP-Methodology"
+      - "~/notes/commands"
     files: []
     recursive: true
     file_patterns:
@@ -115,7 +113,7 @@ workspaces:
 
   cheatsheets:
     directories:
-      - "~/notes/cheatsheets"
+      - "~/notes/reference"
     files: []
     recursive: true
     file_patterns:
@@ -207,6 +205,12 @@ Enter the dev shell:
 direnv allow
 ```
 
+Or without `direnv`:
+
+```bash
+nix develop
+```
+
 Run tests:
 
 ```bash
@@ -216,18 +220,18 @@ pytest -q
 Run the parser against a file:
 
 ```bash
-python3 -m cmd_manager.parser test_data/sample.md
+python -m cmd_manager.parser test_data/sample.md
 ```
 
 Lint a note during development:
 
 ```bash
-python3 opindex --lint-files test_data/sample.md
+./opindex --lint-files test_data/sample.md
 ```
 
 ## Publishing
 
-The package is prepared for Trusted Publishing from GitHub Actions. See:
+Release notes for maintainers:
 
 - [PUBLISHING.md](PUBLISHING.md)
 

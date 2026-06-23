@@ -13,8 +13,11 @@
         default = pkgs.mkShellNoCC {
           packages = [
             (pkgs.python3.withPackages (ps: with ps; [
+              build
+              setuptools
               pytest
               pyyaml
+              wheel
             ]))
           ];
         };
